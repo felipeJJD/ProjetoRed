@@ -1,8 +1,6 @@
 import os
 import random
 import sqlite3
-import logging
-import datetime
 from flask import Flask, render_template, request, redirect, jsonify, url_for, session
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -11,18 +9,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.config['DATABASE'] = os.path.join(app.instance_path, 'whatsapp_redirect.db')
 app.secret_key = 'chave_secreta_para_sessoes_do_flask'  # Chave necessária para sessões
-
-# Método de hash para versões antigas do Python
-def generate_password_hash_compat(password):
-    return generate_password_hash(password, method='pbkdf2:sha256')
-
-# Configuração de logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger('whatsapp_redirect')
 
 # Garantir que o diretório instance exista
 try:
@@ -45,24 +31,23 @@ def init_db():
                 username TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
                 fullname TEXT,
-                is_superadmin INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
-        # Criar tabela de logs do sistema
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS system_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                level TEXT NOT NULL,
-                message TEXT NOT NULL,
-                user_id INTEGER,
-                ip_address TEXT,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        ''')
-        
+        # Verificar se existem usuários e criar os padrões se não houver
+        if not conn.execute('SELECT * FROM users').fetchone():
+            # Criar usuários padrão (pedro e felipe)
+            conn.execute('''
+                INSERT INTO users (username, password, fullname)
+                VALUES (?, ?, ?)
+            ''', ('pedro', generate_password_hash('Vera123'), 'Pedro Administrador'))
+            
+            conn.execute('''
+                INSERT INTO users (username, password, fullname)
+                VALUES (?, ?, ?)
+            ''', ('felipe', generate_password_hash('123'), 'Felipe Administrador'))
+
         # Criar tabela de números com referência ao usuário
         conn.execute('''
             CREATE TABLE IF NOT EXISTS whatsapp_numbers (
@@ -87,58 +72,108 @@ def init_db():
             )
         ''')
         
-        # Verificar se existem usuários e criar os padrões se não houver
-        if not conn.execute('SELECT * FROM users').fetchone():
-            # Criar usuário super administrador (você)
+        # Verificar se as colunas necessárias existem
+        result = conn.execute("PRAGMA table_info(custom_links)").fetchall()
+        columns = [col['name'] for col in result]
+        
+        # Adicionar coluna user_id se não existir
+        if 'user_id' not in columns:
+            try:
+                # Fazer backup dos dados existentes
+                links = conn.execute('SELECT * FROM custom_links').fetchall()
+                # Recriar a tabela com a nova estrutura
+                conn.execute('DROP TABLE IF EXISTS custom_links_old')
+                conn.execute('ALTER TABLE custom_links RENAME TO custom_links_old')
+                
+                # Criar nova tabela com a estrutura correta
+                conn.execute('''
+                    CREATE TABLE custom_links (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        link_name TEXT NOT NULL,
+                        custom_message TEXT,
+                        is_active INTEGER DEFAULT 1,
+                        FOREIGN KEY (user_id) REFERENCES users (id),
+                        UNIQUE(user_id, link_name)
+                    )
+                ''')
+                
+                # Transferir dados, atribuindo a pedro (id=1) por padrão
+                for link in links:
+                    conn.execute('''
+                        INSERT INTO custom_links (id, user_id, link_name, custom_message, is_active)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (link['id'], 1, link['link_name'], link['custom_message'], link['is_active']))
+            except:
+                # Se algo der errado, garantir que a tabela exista
+                conn.execute('''
+                    CREATE TABLE IF NOT EXISTS custom_links (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        link_name TEXT NOT NULL,
+                        custom_message TEXT,
+                        is_active INTEGER DEFAULT 1,
+                        FOREIGN KEY (user_id) REFERENCES users (id),
+                        UNIQUE(user_id, link_name)
+                    )
+                ''')
+        
+        # Mesmo processo para a tabela whatsapp_numbers
+        result = conn.execute("PRAGMA table_info(whatsapp_numbers)").fetchall()
+        columns = [col['name'] for col in result]
+        
+        if 'user_id' not in columns:
+            try:
+                # Fazer backup dos dados existentes
+                numbers = conn.execute('SELECT * FROM whatsapp_numbers').fetchall()
+                # Recriar a tabela
+                conn.execute('DROP TABLE IF EXISTS whatsapp_numbers_old')
+                conn.execute('ALTER TABLE whatsapp_numbers RENAME TO whatsapp_numbers_old')
+                
+                # Criar nova tabela com a estrutura correta
+                conn.execute('''
+                    CREATE TABLE whatsapp_numbers (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        phone_number TEXT NOT NULL,
+                        description TEXT,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
+                
+                # Transferir dados, atribuindo a pedro (id=1) por padrão
+                for number in numbers:
+                    conn.execute('''
+                        INSERT INTO whatsapp_numbers (id, user_id, phone_number, description)
+                        VALUES (?, ?, ?, ?)
+                    ''', (number['id'], 1, number['phone_number'], number['description']))
+            except:
+                # Se algo der errado, garantir que a tabela exista
+                conn.execute('''
+                    CREATE TABLE IF NOT EXISTS whatsapp_numbers (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        phone_number TEXT NOT NULL,
+                        description TEXT,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
+        
+        # Garantir que cada usuário tenha pelo menos um link padrão
+        for user_id in [1, 2]:  # pedro e felipe
             conn.execute('''
-                INSERT INTO users (username, password, fullname, is_superadmin)
-                VALUES (?, ?, ?, ?)
-            ''', ('admin', generate_password_hash_compat('admin123'), 'Super Administrador', 1))
-            
-            # Criar usuários padrão (pedro e felipe)
-            conn.execute('''
-                INSERT INTO users (username, password, fullname)
-                VALUES (?, ?, ?)
-            ''', ('pedro', generate_password_hash_compat('Vera123'), 'Pedro Administrador'))
-            
-            conn.execute('''
-                INSERT INTO users (username, password, fullname)
-                VALUES (?, ?, ?)
-            ''', ('felipe', generate_password_hash_compat('123'), 'Felipe Administrador'))
-            
-            # Registrar log de criação de usuários
-            conn.execute('''
-                INSERT INTO system_logs (level, message)
-                VALUES (?, ?)
-            ''', ('INFO', 'Usuários iniciais criados durante a inicialização do sistema'))
+                INSERT OR IGNORE INTO custom_links (user_id, link_name, custom_message)
+                VALUES (?, 'padrao', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...')
+            ''', (user_id,))
 
 # Inicializar o banco de dados
 init_db()
-
-# Função para adicionar log ao sistema
-def add_log(level, message, user_id=None):
-    with get_db_connection() as conn:
-        ip = request.remote_addr if request else "N/A"
-        conn.execute('''
-            INSERT INTO system_logs (level, message, user_id, ip_address)
-            VALUES (?, ?, ?, ?)
-        ''', (level, message, user_id, ip))
-    logger.info(f"[{level}] {message} (User ID: {user_id}, IP: {ip})")
 
 # Função para verificar se o usuário está logado
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'logged_in' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-# Função para verificar se o usuário é superadmin
-def superadmin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'logged_in' not in session or 'is_superadmin' not in session or not session['is_superadmin']:
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -165,32 +200,18 @@ def login():
             session['username'] = username
             session['user_id'] = user['id']
             session['fullname'] = user['fullname']
-            session['is_superadmin'] = user['is_superadmin'] == 1
-            
-            # Adicionar log de login
-            add_log('INFO', f'Usuário {username} fez login', user['id'])
-            
-            # Redirecionar para superadmin ou admin normal
-            if user['is_superadmin'] == 1:
-                return redirect(url_for('superadmin'))
-            else:
-                return redirect(url_for('admin'))
+            return redirect(url_for('admin'))
         else:
             error = 'Credenciais inválidas. Por favor, tente novamente.'
-            add_log('WARNING', f'Tentativa de login mal-sucedida para o usuário: {username}')
     
     return render_template('login.html', error=error)
 
 @app.route('/logout')
 def logout():
-    if 'user_id' in session:
-        add_log('INFO', f'Usuário {session.get("username")} fez logout', session.get('user_id'))
-    
     session.pop('logged_in', None)
     session.pop('username', None)
     session.pop('user_id', None)
     session.pop('fullname', None)
-    session.pop('is_superadmin', None)
     return redirect(url_for('login'))
 
 @app.route('/admin')
@@ -348,156 +369,6 @@ def redirect_whatsapp(link_name):
         
         # Redirecionar diretamente para o WhatsApp
         return redirect(whatsapp_url)
-
-# Rota para o painel de super administrador
-@app.route('/superadmin')
-@superadmin_required
-def superadmin():
-    with get_db_connection() as conn:
-        # Obter todos os usuários
-        users = conn.execute('''
-            SELECT u.*, 
-                  (SELECT COUNT(*) FROM whatsapp_numbers WHERE user_id = u.id) as number_count,
-                  (SELECT COUNT(*) FROM custom_links WHERE user_id = u.id) as link_count
-            FROM users u
-            ORDER BY u.id
-        ''').fetchall()
-        
-        # Obter logs recentes
-        logs = conn.execute('''
-            SELECT l.*, u.username 
-            FROM system_logs l
-            LEFT JOIN users u ON l.user_id = u.id
-            ORDER BY l.timestamp DESC
-            LIMIT 100
-        ''').fetchall()
-    
-    return render_template('superadmin.html', users=users, logs=logs)
-
-# API para gerenciar usuários (apenas superadmin)
-@app.route('/api/users', methods=['GET', 'POST'])
-@superadmin_required
-def manage_users():
-    with get_db_connection() as conn:
-        if request.method == 'POST':
-            username = request.form.get('username')
-            password = request.form.get('password')
-            fullname = request.form.get('fullname')
-            
-            # Verificar se o usuário já existe
-            existing = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-            if existing:
-                add_log('ERROR', f'Tentativa de criar usuário duplicado: {username}', session.get('user_id'))
-                return jsonify({'success': False, 'error': 'Este nome de usuário já existe'}), 400
-            
-            # Criar o novo usuário
-            conn.execute('''
-                INSERT INTO users (username, password, fullname)
-                VALUES (?, ?, ?)
-            ''', (username, generate_password_hash_compat(password), fullname))
-            
-            add_log('INFO', f'Novo usuário criado: {username}', session.get('user_id'))
-            return redirect(url_for('superadmin'))
-        
-        # Para requisições GET, retornar todos os usuários
-        users = conn.execute('''
-            SELECT id, username, fullname, is_superadmin, created_at,
-                  (SELECT COUNT(*) FROM whatsapp_numbers WHERE user_id = users.id) as number_count,
-                  (SELECT COUNT(*) FROM custom_links WHERE user_id = users.id) as link_count
-            FROM users
-        ''').fetchall()
-        return jsonify([dict(user) for user in users])
-
-@app.route('/api/users/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
-@superadmin_required
-def manage_user(user_id):
-    # Não permitir excluir o próprio superadmin
-    if user_id == session.get('user_id') and request.method == 'DELETE':
-        add_log('ERROR', 'Tentativa de excluir o próprio superadmin', session.get('user_id'))
-        return jsonify({'success': False, 'error': 'Não é possível excluir seu próprio usuário'}), 403
-    
-    with get_db_connection() as conn:
-        if request.method == 'GET':
-            # Obter detalhes de um usuário específico
-            user = conn.execute('SELECT id, username, fullname, is_superadmin, created_at FROM users WHERE id = ?', 
-                             (user_id,)).fetchone()
-            
-            if not user:
-                return jsonify({'success': False, 'error': 'Usuário não encontrado'}), 404
-            
-            # Obter números deste usuário
-            numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', 
-                                (user_id,)).fetchall()
-            
-            # Obter links deste usuário
-            links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', 
-                              (user_id,)).fetchall()
-            
-            return jsonify({
-                'user': dict(user),
-                'numbers': [dict(number) for number in numbers],
-                'links': [dict(link) for link in links]
-            })
-        
-        elif request.method == 'PUT':
-            # Atualizar usuário
-            data = request.json
-            
-            if 'password' in data and data['password']:
-                conn.execute('UPDATE users SET password = ? WHERE id = ?', 
-                          (generate_password_hash_compat(data['password']), user_id))
-            
-            if 'fullname' in data:
-                conn.execute('UPDATE users SET fullname = ? WHERE id = ?', 
-                          (data['fullname'], user_id))
-            
-            add_log('INFO', f'Usuário ID {user_id} atualizado', session.get('user_id'))
-            return jsonify({'success': True})
-        
-        elif request.method == 'DELETE':
-            # Excluir usuário e todos os seus dados
-            conn.execute('DELETE FROM whatsapp_numbers WHERE user_id = ?', (user_id,))
-            conn.execute('DELETE FROM custom_links WHERE user_id = ?', (user_id,))
-            conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
-            
-            add_log('INFO', f'Usuário ID {user_id} excluído com todos os seus dados', session.get('user_id'))
-            return jsonify({'success': True})
-
-# Rota para visualizar/limpar logs
-@app.route('/api/logs', methods=['GET', 'DELETE'])
-@superadmin_required
-def manage_logs():
-    with get_db_connection() as conn:
-        if request.method == 'GET':
-            # Obter logs, opcionalmente filtrados
-            limit = request.args.get('limit', 100, type=int)
-            level = request.args.get('level')
-            user_id = request.args.get('user_id')
-            
-            query = 'SELECT l.*, u.username FROM system_logs l LEFT JOIN users u ON l.user_id = u.id WHERE 1=1'
-            params = []
-            
-            if level:
-                query += ' AND l.level = ?'
-                params.append(level)
-            
-            if user_id:
-                query += ' AND l.user_id = ?'
-                params.append(user_id)
-            
-            query += ' ORDER BY l.timestamp DESC LIMIT ?'
-            params.append(limit)
-            
-            logs = conn.execute(query, params).fetchall()
-            return jsonify([dict(log) for log in logs])
-        
-        elif request.method == 'DELETE':
-            # Limpar logs
-            conn.execute('DELETE FROM system_logs')
-            
-            # Registrar ação de limpeza
-            add_log('INFO', 'Todos os logs foram limpos', session.get('user_id'))
-            return jsonify({'success': True})
 
 if __name__ == '__main__':
     # Configuração para desenvolvimento local

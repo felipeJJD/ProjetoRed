@@ -235,8 +235,9 @@ def manage_numbers():
             phone = request.form.get('phone')
             description = request.form.get('description')
             conn.execute('INSERT INTO whatsapp_numbers (user_id, phone_number, description) VALUES (?, ?, ?)', 
-                      (user_id, phone, description))
-            return redirect(url_for('admin'))
+                       (user_id, phone, description))
+            # Retornar JSON em vez de redirecionamento
+            return jsonify({'success': True, 'message': 'Número adicionado com sucesso'})
         
         # Se for GET, retornar todos os números
         numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (user_id,)).fetchall()
@@ -273,8 +274,8 @@ def manage_links():
                 return jsonify({'success': False, 'error': 'Este link já existe para o seu usuário'}), 400
             
             conn.execute('INSERT INTO custom_links (user_id, link_name, custom_message) VALUES (?, ?, ?)', 
-                      (user_id, link_name, custom_message))
-            return redirect(url_for('admin'))
+                       (user_id, link_name, custom_message))
+            return jsonify({'success': True, 'message': 'Link adicionado com sucesso'})
         
         # Se for GET, retornar todos os links
         links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()

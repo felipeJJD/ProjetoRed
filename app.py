@@ -231,9 +231,20 @@ def manage_numbers():
     user_id = session.get('user_id')
     with get_db_connection() as conn:
         if request.method == 'POST':
+            # Verificar se os dados são JSON ou formulário
+            if request.is_json:
+                data = request.json
+                phone = data.get('phone_number')
+                description = data.get('description')
+            else:
+                phone = request.form.get('phone')
+                description = request.form.get('description')
+                
+            # Validar dados
+            if not phone:
+                return jsonify({'success': False, 'error': 'Número de telefone é obrigatório'}), 400
+                
             # Adicionar novo número
-            phone = request.form.get('phone')
-            description = request.form.get('description')
             conn.execute('INSERT INTO whatsapp_numbers (user_id, phone_number, description) VALUES (?, ?, ?)', 
                        (user_id, phone, description))
             # Retornar JSON em vez de redirecionamento
@@ -263,13 +274,22 @@ def manage_links():
     user_id = session.get('user_id')
     with get_db_connection() as conn:
         if request.method == 'POST':
-            # Adicionar novo link
-            link_name = request.form.get('link_name')
-            custom_message = request.form.get('custom_message')
+            # Verificar se os dados são JSON ou formulário
+            if request.is_json:
+                data = request.json
+                link_name = data.get('link_name')
+                custom_message = data.get('custom_message')
+            else:
+                link_name = request.form.get('link_name')
+                custom_message = request.form.get('custom_message')
+            
+            # Validar dados
+            if not link_name:
+                return jsonify({'success': False, 'error': 'Nome do link é obrigatório'}), 400
             
             # Verificar se o link já existe para este usuário
             existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ?', 
-                                 (link_name, user_id)).fetchone()
+                                  (link_name, user_id)).fetchone()
             if existing:
                 return jsonify({'success': False, 'error': 'Este link já existe para o seu usuário'}), 400
             

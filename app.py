@@ -12,6 +12,10 @@ app = Flask(__name__)
 app.config['DATABASE'] = os.path.join(app.instance_path, 'whatsapp_redirect.db')
 app.secret_key = 'chave_secreta_para_sessoes_do_flask'  # Chave necessária para sessões
 
+# Método de hash para versões antigas do Python
+def generate_password_hash_compat(password):
+    return generate_password_hash(password, method='pbkdf2:sha256')
+
 # Configuração de logging
 logging.basicConfig(
     level=logging.INFO,
@@ -89,18 +93,18 @@ def init_db():
             conn.execute('''
                 INSERT INTO users (username, password, fullname, is_superadmin)
                 VALUES (?, ?, ?, ?)
-            ''', ('admin', generate_password_hash('admin123'), 'Super Administrador', 1))
+            ''', ('admin', generate_password_hash_compat('admin123'), 'Super Administrador', 1))
             
             # Criar usuários padrão (pedro e felipe)
             conn.execute('''
                 INSERT INTO users (username, password, fullname)
                 VALUES (?, ?, ?)
-            ''', ('pedro', generate_password_hash('Vera123'), 'Pedro Administrador'))
+            ''', ('pedro', generate_password_hash_compat('Vera123'), 'Pedro Administrador'))
             
             conn.execute('''
                 INSERT INTO users (username, password, fullname)
                 VALUES (?, ?, ?)
-            ''', ('felipe', generate_password_hash('123'), 'Felipe Administrador'))
+            ''', ('felipe', generate_password_hash_compat('123'), 'Felipe Administrador'))
             
             # Registrar log de criação de usuários
             conn.execute('''
@@ -390,7 +394,7 @@ def manage_users():
             conn.execute('''
                 INSERT INTO users (username, password, fullname)
                 VALUES (?, ?, ?)
-            ''', (username, generate_password_hash(password), fullname))
+            ''', (username, generate_password_hash_compat(password), fullname))
             
             add_log('INFO', f'Novo usuário criado: {username}', session.get('user_id'))
             return redirect(url_for('superadmin'))
@@ -441,7 +445,7 @@ def manage_user(user_id):
             
             if 'password' in data and data['password']:
                 conn.execute('UPDATE users SET password = ? WHERE id = ?', 
-                          (generate_password_hash(data['password']), user_id))
+                          (generate_password_hash_compat(data['password']), user_id))
             
             if 'fullname' in data:
                 conn.execute('UPDATE users SET fullname = ? WHERE id = ?', 

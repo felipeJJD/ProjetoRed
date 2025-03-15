@@ -1,11 +1,13 @@
 import os
 import random
 import sqlite3
-from flask import Flask, render_template, request, redirect, jsonify, url_for
+from flask import Flask, render_template, request, redirect, jsonify, url_for, session
+from functools import wraps
 
 # Configuração do Flask
 app = Flask(__name__)
 app.config['DATABASE'] = os.path.join(app.instance_path, 'whatsapp_redirect.db')
+app.secret_key = 'chave_secreta_para_sessoes_do_flask'  # Chave necessária para sessões
 
 # Garantir que o diretório instance exista
 try:
@@ -55,12 +57,45 @@ def init_db():
 # Inicializar o banco de dados
 init_db()
 
+# Função para verificar se o usuário está logado
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 # Rotas da aplicação
 @app.route('/')
 def index():
     return render_template('index.html')
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        # Verificar credenciais
+        if username == 'pedro' and password == 'Vera123':
+            session['logged_in'] = True
+            session['username'] = username
+            return redirect(url_for('admin'))
+        else:
+            error = 'Credenciais inválidas. Por favor, tente novamente.'
+    
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    session.pop('username', None)
+    return redirect(url_for('login'))
+
 @app.route('/admin')
+@login_required
 def admin():
     # Obter números e links do banco de dados
     with get_db_connection() as conn:

@@ -108,6 +108,7 @@
                                                 <th>ID</th>
                                                 <th>Nome do Link</th>
                                                 <th>Mensagem Personalizada</th>
+                                                <th>Cliques</th>
                                                 <th>URL Completa</th>
                                                 <th>Ações</th>
                                             </tr>
@@ -123,6 +124,7 @@
                                                             {{ link.custom_message }}
                                                         </div>
                                                     </td>
+                                                    <td><span class="badge bg-primary">{{ link.click_count or 0 }}</span></td>
                                                     <td><code>{{ request.host_url }}redirect/{{ link.link_name }}</code></td>
                                                     <td>
                                                         <div class="btn-group">
@@ -146,7 +148,7 @@
                                                 {% endfor %}
                                             {% else %}
                                                 <tr>
-                                                    <td colspan="5" class="text-center">Nenhum link personalizado</td>
+                                                    <td colspan="6" class="text-center">Nenhum link personalizado</td>
                                                 </tr>
                                             {% endif %}
                                         </tbody>

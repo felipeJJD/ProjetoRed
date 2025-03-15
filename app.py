@@ -67,6 +67,7 @@ def init_db():
                 link_name TEXT NOT NULL,
                 custom_message TEXT,
                 is_active INTEGER DEFAULT 1,
+                click_count INTEGER DEFAULT 0,
                 FOREIGN KEY (user_id) REFERENCES users (id),
                 UNIQUE(user_id, link_name)
             )
@@ -93,6 +94,7 @@ def init_db():
                         link_name TEXT NOT NULL,
                         custom_message TEXT,
                         is_active INTEGER DEFAULT 1,
+                        click_count INTEGER DEFAULT 0,
                         FOREIGN KEY (user_id) REFERENCES users (id),
                         UNIQUE(user_id, link_name)
                     )
@@ -113,10 +115,18 @@ def init_db():
                         link_name TEXT NOT NULL,
                         custom_message TEXT,
                         is_active INTEGER DEFAULT 1,
+                        click_count INTEGER DEFAULT 0,
                         FOREIGN KEY (user_id) REFERENCES users (id),
                         UNIQUE(user_id, link_name)
                     )
                 ''')
+        
+        # Adicionar coluna click_count se não existir
+        if 'click_count' not in columns:
+            try:
+                conn.execute('ALTER TABLE custom_links ADD COLUMN click_count INTEGER DEFAULT 0')
+            except:
+                pass  # Ignorar erro se a coluna já existir ou em caso de outra falha
         
         # Mesmo processo para a tabela whatsapp_numbers
         result = conn.execute("PRAGMA table_info(whatsapp_numbers)").fetchall()
@@ -357,9 +367,8 @@ def update_link(link_id):
 # Rota para redirecionamento direto ao WhatsApp
 @app.route('/redirect/<link_name>')
 def redirect_whatsapp(link_name):
-    # Primeiro, precisamos encontrar qual usuário tem este link
     with get_db_connection() as conn:
-        # Procurar o link entre todos os usuários
+        # Procurar qual usuário é dono do link
         link = conn.execute('''
             SELECT cl.*, u.id as owner_id 
             FROM custom_links cl
@@ -371,19 +380,27 @@ def redirect_whatsapp(link_name):
             # Link não encontrado ou inativo
             return render_template('index.html', error='Link não encontrado ou inativo')
         
-        # Encontrar o link, agora pegar um número aleatório desse usuário
+        # Incrementar contador de cliques
+        conn.execute('UPDATE custom_links SET click_count = click_count + 1 WHERE id = ?', (link['id'],))
+        
+        # Obter todos os números deste usuário
         numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', 
                             (link['owner_id'],)).fetchall()
         
         if not numbers:
-            # Usuário não tem números cadastrados
-            return render_template('index.html', error='Não há números disponíveis para este link')
+            # Nenhum número registrado
+            return render_template('index.html', error='Nenhum número cadastrado para este link')
         
-        # Selecionar um número aleatório
-        random_number = random.choice(numbers)
-        phone_number = random_number['phone_number']
+        # Selecionar um número aleatoriamente
+        selected_number = random.choice(numbers)
+        phone_number = selected_number['phone_number']
         
-        custom_message = link['custom_message'] or ''
+        # Preparar mensagem personalizada ou usar padrão
+        custom_message = link['custom_message'] or 'Olá!'
+        
+        # Codificar a mensagem para URL
+        import urllib.parse
+        custom_message = urllib.parse.quote(custom_message)
         
         # Construir URL do WhatsApp
         whatsapp_url = f"https://wa.me/{phone_number}?text={custom_message}"

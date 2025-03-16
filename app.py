@@ -55,6 +55,7 @@ def init_db():
                 user_id INTEGER NOT NULL,
                 phone_number TEXT NOT NULL,
                 description TEXT,
+                redirect_count INTEGER DEFAULT 0,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
@@ -70,6 +71,18 @@ def init_db():
                 click_count INTEGER DEFAULT 0,
                 FOREIGN KEY (user_id) REFERENCES users (id),
                 UNIQUE(user_id, link_name)
+            )
+        ''')
+        
+        # Criar tabela de redirecionamentos (nova tabela)
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS redirects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                number_id INTEGER NOT NULL,
+                link_id INTEGER NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (number_id) REFERENCES whatsapp_numbers (id),
+                FOREIGN KEY (link_id) REFERENCES custom_links (id)
             )
         ''')
         
@@ -147,6 +160,7 @@ def init_db():
                         user_id INTEGER NOT NULL,
                         phone_number TEXT NOT NULL,
                         description TEXT,
+                        redirect_count INTEGER DEFAULT 0,
                         FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
@@ -165,9 +179,40 @@ def init_db():
                         user_id INTEGER NOT NULL,
                         phone_number TEXT NOT NULL,
                         description TEXT,
+                        redirect_count INTEGER DEFAULT 0,
                         FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
+        
+        # Verificar e adicionar coluna redirect_count se não existir
+        if 'redirect_count' not in columns:
+            try:
+                print("Adicionando coluna redirect_count à tabela whatsapp_numbers...")
+                conn.execute('ALTER TABLE whatsapp_numbers ADD COLUMN redirect_count INTEGER DEFAULT 0')
+                print("Coluna redirect_count adicionada com sucesso!")
+            except Exception as e:
+                print(f"Erro ao adicionar coluna redirect_count: {e}")
+        
+        # Verificar se a tabela redirects existe
+        tabelas_existentes = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        tabelas_existentes = [tabela['name'] for tabela in tabelas_existentes]
+        
+        if 'redirects' not in tabelas_existentes:
+            try:
+                print("Criando tabela redirects...")
+                conn.execute('''
+                    CREATE TABLE redirects (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        number_id INTEGER NOT NULL,
+                        link_id INTEGER NOT NULL,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (number_id) REFERENCES whatsapp_numbers (id),
+                        FOREIGN KEY (link_id) REFERENCES custom_links (id)
+                    )
+                ''')
+                print("Tabela redirects criada com sucesso!")
+            except Exception as e:
+                print(f"Erro ao criar a tabela redirects: {e}")
         
         # Garantir que cada usuário tenha pelo menos um link padrão
         for user_id in [1, 2]:  # pedro e felipe
@@ -233,6 +278,95 @@ def admin():
         numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (user_id,)).fetchall()
         links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
     return render_template('admin.html', numbers=numbers, links=links)
+
+@app.route('/admin/estatisticas')
+@login_required
+def estatisticas():
+    user_id = session.get('user_id')
+    with get_db_connection() as conn:
+        # Obter estatísticas por número
+        numeros_stats = conn.execute('''
+            SELECT wn.*, COUNT(r.id) as total_redirects,
+                   (SELECT COUNT(*) FROM redirects r2 
+                    JOIN custom_links cl ON r2.link_id = cl.id 
+                    WHERE r2.number_id = wn.id AND cl.user_id = ? 
+                    AND DATE(r2.timestamp) = DATE('now')) as redirects_today
+            FROM whatsapp_numbers wn
+            LEFT JOIN redirects r ON wn.id = r.number_id
+            WHERE wn.user_id = ?
+            GROUP BY wn.id
+            ORDER BY total_redirects DESC
+        ''', (user_id, user_id)).fetchall()
+        
+        # Obter estatísticas por link para este usuário
+        links_stats = conn.execute('''
+            SELECT cl.*, COUNT(r.id) as total_redirects
+            FROM custom_links cl
+            LEFT JOIN redirects r ON cl.id = r.link_id
+            WHERE cl.user_id = ?
+            GROUP BY cl.id
+            ORDER BY total_redirects DESC
+        ''', (user_id,)).fetchall()
+        
+        # Obter detalhes de redirecionamentos recentes (últimos 50)
+        recentes = conn.execute('''
+            SELECT r.timestamp, cl.link_name, wn.phone_number, wn.description
+            FROM redirects r
+            JOIN whatsapp_numbers wn ON r.number_id = wn.id
+            JOIN custom_links cl ON r.link_id = cl.id
+            WHERE wn.user_id = ?
+            ORDER BY r.timestamp DESC
+            LIMIT 50
+        ''', (user_id,)).fetchall()
+        
+    return render_template('estatisticas.html', 
+                          numeros_stats=numeros_stats,
+                          links_stats=links_stats,
+                          recentes=recentes)
+
+@app.route('/admin/balanco')
+@login_required
+def balanco_redirecionamentos():
+    user_id = session.get('user_id')
+    with get_db_connection() as conn:
+        # Obter estatísticas por número
+        numeros = conn.execute('''
+            SELECT phone_number, description, redirect_count 
+            FROM whatsapp_numbers
+            WHERE user_id = ?
+            ORDER BY redirect_count DESC
+        ''', (user_id,)).fetchall()
+        
+        # Calcular o total de redirecionamentos
+        total_redirects = sum(num['redirect_count'] for num in numeros)
+        
+        # Calcular a proporção ideal
+        num_count = len(numeros)
+        ideal_por_numero = total_redirects / num_count if num_count > 0 else 0
+        
+        # Calcular desvio do ideal
+        for i in range(len(numeros)):
+            numeros[i] = dict(numeros[i])
+            numeros[i]['desvio'] = numeros[i]['redirect_count'] - ideal_por_numero
+            numeros[i]['porcentagem'] = (numeros[i]['redirect_count'] / total_redirects * 100) if total_redirects > 0 else 0
+            numeros[i]['ideal'] = 100 / num_count if num_count > 0 else 0
+            numeros[i]['diferenca_pct'] = numeros[i]['porcentagem'] - numeros[i]['ideal']
+        
+    # Retornar em formato JSON
+    return jsonify({
+        'total_redirecionamentos': total_redirects,
+        'numeros_cadastrados': num_count,
+        'ideal_por_numero': round(ideal_por_numero, 2),
+        'ideal_porcentagem': round(100 / num_count if num_count > 0 else 0, 2),
+        'numeros': [{
+            'phone': num['phone_number'],
+            'description': num['description'],
+            'count': num['redirect_count'],
+            'porcentagem': round(num['porcentagem'], 2),
+            'ideal': round(num['ideal'], 2),
+            'diferenca': round(num['diferenca_pct'], 2)
+        } for num in numeros]
+    })
 
 # API para gerenciar números
 @app.route('/api/numbers', methods=['GET', 'POST'])
@@ -391,9 +525,42 @@ def redirect_whatsapp(link_name):
             # Nenhum número registrado
             return render_template('index.html', error='Nenhum número cadastrado para este link')
         
-        # Selecionar um número aleatoriamente
-        selected_number = random.choice(numbers)
+        # Algoritmo de distribuição equilibrada:
+        # Em vez de escolher aleatoriamente, vamos priorizar o número com menos redirecionamentos
+        
+        if len(numbers) == 1:
+            # Se só tem um número, não há o que balancear
+            selected_number = numbers[0]
+        else:
+            # Ordenar números pela quantidade de redirecionamentos (do menor para o maior)
+            sorted_numbers = sorted(numbers, key=lambda x: x['redirect_count'])
+            
+            # Verificar se há empate no menor número de redirecionamentos
+            min_redirects = sorted_numbers[0]['redirect_count']
+            candidates = [n for n in sorted_numbers if n['redirect_count'] == min_redirects]
+            
+            if len(candidates) > 1:
+                # Se houver empate, escolher aleatoriamente entre os candidatos
+                selected_number = random.choice(candidates)
+            else:
+                # Caso contrário, escolher o que tem menos redirecionamentos
+                selected_number = sorted_numbers[0]
+                
+            # Adicionar um pouco de aleatoriedade (20% de chance de não escolher o mínimo)
+            # Isso evita que o padrão fique muito óbvio e mantém alguma aleatoriedade
+            if random.random() < 0.2 and len(sorted_numbers) > 1:
+                # Escolher qualquer número exceto o primeiro (que já foi selecionado acima)
+                selected_number = random.choice(sorted_numbers[1:])
+        
         phone_number = selected_number['phone_number']
+        
+        # Incrementar contador de redirecionamentos para este número específico
+        conn.execute('UPDATE whatsapp_numbers SET redirect_count = redirect_count + 1 WHERE id = ?', 
+                   (selected_number['id'],))
+        
+        # Registrar o redirecionamento na nova tabela
+        conn.execute('INSERT INTO redirects (number_id, link_id) VALUES (?, ?)', 
+                   (selected_number['id'], link['id']))
         
         # Preparar mensagem personalizada ou usar padrão
         custom_message = link['custom_message'] or 'Olá!'
@@ -410,8 +577,8 @@ def redirect_whatsapp(link_name):
 
 if __name__ == '__main__':
     # Configuração para desenvolvimento local
-    # app.run(debug=True, port=5002)
+    app.run(debug=True, port=5002)
     
     # Configuração para produção (Railway)
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    # port = int(os.environ.get('PORT', 5000))
+    # app.run(host='0.0.0.0', port=port, debug=False)

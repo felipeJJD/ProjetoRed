@@ -1,0 +1,35 @@
+# Ambiente virtual
+.venv/
+venv/
+ENV/
+
+# Arquivos de banco de dados e backups
+*.db
+instance_backup/
+backup_*/
+
+# Arquivos de cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Arquivos temporários
+*.log
+*.tmp
+.DS_Store
+.coverage
+htmlcov/
+coverage.xml
+
+# Arquivos de IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Arquivos de usuário
+cookies.txt
+
+# Permitir o arquivo principal de banco de dados
+!instance/whatsapp_redirect.db 

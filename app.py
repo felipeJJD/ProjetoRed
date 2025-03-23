@@ -1189,7 +1189,8 @@ def estatisticas():
         links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
         numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (user_id,)).fetchall()
     
-    return render_template('dashboard.html', links=links, numbers=numbers)
+    # Retornar o template específico de estatísticas em vez do dashboard
+    return render_template('estatisticas.html', links=links, numbers=numbers)
 
 # Adicionar função para corrigir registros inconsistentes
 def fix_data_inconsistencies(conn):

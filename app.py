@@ -1430,7 +1430,7 @@ if __name__ == '__main__':
     # Verifica se está em ambiente de produção (Railway) ou local
     if os.environ.get('RAILWAY_ENVIRONMENT'):
         # Configuração para produção (Railway)
-        port = int(os.environ.get('PORT', 5000))
+        port = int(os.environ.get('PORT', 5002))  # Alterado de 5000 para 5002
         app.run(host='0.0.0.0', port=port, debug=False)
     else:
         # Configuração para desenvolvimento local

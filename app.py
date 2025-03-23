@@ -1271,11 +1271,29 @@ def before_first_request():
 # Configuração para permitir acesso a recursos estáticos
 @app.route('/static/<path:filename>')
 def serve_static(filename):
-    return send_from_directory('static', filename)
+    try:
+        logger.info(f"Acessando arquivo estático: {filename}")
+        return send_from_directory('static', filename)
+    except Exception as e:
+        logger.error(f"Erro ao acessar arquivo estático {filename}: {str(e)}")
+        return f"Erro ao carregar arquivo: {filename}", 404
+
+# Capturar erros 500 para logar detalhes
+@app.errorhandler(500)
+def handle_500(e):
+    logger.error(f"Erro 500 interno: {str(e)}")
+    logger.error(traceback.format_exc())
+    return render_template('index.html', error="Ocorreu um erro interno no servidor. Por favor, tente novamente mais tarde."), 500
 
 if __name__ == '__main__':
     # Configurações para ambiente de desenvolvimento local
     # Executar a aplicação com configurações corretas para acesso externo
-    port = int(os.environ.get('PORT', 3333))
-    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    try:
+        port = int(os.environ.get('PORT', 5000))  # Alterando porta padrão para 5000
+        debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+        logger.info(f"Iniciando servidor na porta {port} com debug={debug}")
+        app.run(host='0.0.0.0', port=port, debug=debug)
+    except Exception as e:
+        logger.critical(f"Erro ao iniciar o servidor: {str(e)}")
+        logger.critical(traceback.format_exc())
+        print(f"Erro crítico ao iniciar: {str(e)}")

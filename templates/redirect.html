@@ -4,107 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Redirecionamento WhatsApp</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         body {
-            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
             display: flex;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             min-height: 100vh;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
         }
-        .redirect-card {
-            max-width: 500px;
-            width: 100%;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            border: none;
-            border-radius: 15px;
-            overflow: hidden;
+        .loading {
+            text-align: center;
         }
-        .whatsapp-header {
-            background-color: #25d366;
-            color: white;
-            padding: 1.5rem;
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #25d366;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
         }
-        .whatsapp-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-        .message-container {
-            padding: 2rem;
-            background-color: white;
-        }
-        .countdown {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #25d366;
-        }
-        .btn-whatsapp {
-            background-color: #25d366;
-            border-color: #25d366;
-            padding: 0.8rem 1.5rem;
-            font-size: 1.1rem;
-            margin-top: 1rem;
-        }
-        .btn-whatsapp:hover {
-            background-color: #128C7E;
-            border-color: #128C7E;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
+    <!-- Redirecionamento imediato -->
+    <meta http-equiv="refresh" content="0;url={{ whatsapp_url }}">
 </head>
 <body>
-    <div class="container">
-        <div class="card redirect-card">
-            <div class="whatsapp-header text-center">
-                <i class="bi bi-whatsapp whatsapp-icon"></i>
-                <h1 class="h3">Redirecionamento para WhatsApp</h1>
-            </div>
-            <div class="message-container text-center">
-                <div class="message mb-4">
-                    <p class="lead">{{ custom_message }}</p>
-                </div>
-                <div class="countdown-container mb-4">
-                    <p>Redirecionando em</p>
-                    <span class="countdown" id="countdown">5</span>
-                </div>
-                <div class="button-container">
-                    <a href="{{ whatsapp_url }}" class="btn btn-whatsapp btn-lg" id="redirect-btn">
-                        <i class="bi bi-whatsapp me-2"></i>Ir para WhatsApp agora
-                    </a>
-                </div>
-            </div>
-        </div>
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Redirecionando para o WhatsApp...</p>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Iniciar o contador regressivo
-            let count = 5;
-            const countdownElement = document.getElementById('countdown');
-            const redirectBtn = document.getElementById('redirect-btn');
-            const whatsappUrl = "{{ whatsapp_url }}";
-            
-            // Atualizar o contador a cada segundo
-            const timer = setInterval(function() {
-                count--;
-                countdownElement.textContent = count;
-                
-                // Quando o contador chegar a zero, redirecionar
-                if (count <= 0) {
-                    clearInterval(timer);
-                    window.location.href = whatsappUrl;
-                }
-            }, 1000);
-            
-            // Se o usuário clicar no botão, cancelar o contador e redirecionar imediatamente
-            redirectBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                clearInterval(timer);
-                window.location.href = whatsappUrl;
-            });
-        });
+        // Redirecionamento via JavaScript para garantir compatibilidade
+        window.location.href = "{{ whatsapp_url }}";
     </script>
 </body>
 </html>

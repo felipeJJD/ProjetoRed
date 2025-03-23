@@ -146,4 +146,46 @@ Para informações mais detalhadas sobre o sistema, consulte:
 
 ## Licença
 
-Este projeto é de uso privado e não possui licença pública. 
+Este projeto é de uso privado e não possui licença pública.
+
+## Implantação no Railway
+
+Este projeto está configurado para fácil implantação no Railway:
+
+1. Fork este repositório para sua conta GitHub
+2. Entre em [Railway.app](https://railway.app/)
+3. Crie um novo projeto, selecione "Deploy from GitHub repo"
+4. Selecione este repositório
+5. O Railway automaticamente detectará as configurações e fará o deploy
+
+### Variáveis de Ambiente
+
+O Railway usará estas variáveis de ambiente (já configuradas no railway.toml):
+
+- `PORT`: Porta em que o aplicativo será executado (padrão: 3333)
+- `FLASK_ENV`: Ambiente do Flask (production/development)
+
+## Desenvolvimento Local
+
+Para executar o projeto localmente:
+
+```bash
+# Clonar o repositório
+git clone https://github.com/felipeJJD/ProjetoRed.git
+cd ProjetoRed
+
+# Criar ambiente virtual
+python -m venv venv
+source venv/bin/activate  # No Windows: venv\Scripts\activate
+
+# Instalar dependências
+pip install -r requirements.txt
+
+# Executar o aplicativo
+python app.py
+```
+
+## Acesso
+
+- **URL**: Após a implantação, o Railway fornecerá um URL para acesso
+- **Login**: Username: pedro, Senha: Vera123 

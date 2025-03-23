@@ -56,20 +56,12 @@ code {
     }
 }
 
-/* Definição personalizada para texto muted */
 .text-muted {
     --bs-text-opacity: 1;
-    color: #e9ecef !important;
-}
-
-/* Cor branca para data e hora nas atividades recentes */
-#recentActivity td .text-muted,
-#recentActivity td small.text-muted {
     color: #ffffff !important;
 }
 
-/* Garantir que datas em Atividades Recentes sejam brancas */
-#recentActivity td small,
-#recentActivity td:first-child small {
+/* Sobrescrever qualquer instância de texto muted */
+.text-muted, .form-text, small.text-muted, span.text-muted, div.text-muted, p.text-muted {
     color: #ffffff !important;
 }

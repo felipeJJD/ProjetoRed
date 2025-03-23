@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin=""/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         :root {
             --primary-color: #25d366;
@@ -23,6 +22,11 @@
             background-color: var(--dark-color);
             color: var(--light-color);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Sobrescrever a classe text-muted para o dashboard */
+        .text-muted, small.text-muted, span.text-muted, div.text-muted, p.text-muted {
+            color: #ffffff !important;
         }
         
         .card {
@@ -192,20 +196,6 @@
         
         ::-webkit-scrollbar-thumb:hover {
             background: var(--secondary-color);
-        }
-        
-        #recentActivity small.text-muted {
-            color: white !important;
-        }
-        
-        /* Garantir que todas as células do recentActivity tenham text-muted com cor branca */
-        #recentActivity td small {
-            color: white !important;
-        }
-        
-        /* Forçar todas as pequenas de data a serem brancas */
-        td small.text-muted[class*="text-muted"] {
-            color: white !important;
         }
     </style>
 </head>
@@ -717,7 +707,8 @@
                             // Preencher as células
                             row.innerHTML = `
                                 <td>
-                                    <small class="text-muted" style="color: white !important;">${formattedDate}</small>
+                                    <small class="text-muted">${formattedDate}</small>
+                                    ${redirect.multiple_clicks ? `<span class="badge bg-warning text-dark ms-2">${redirect.click_count}x</span>` : ''}
                                 </td>
                                 <td>
                                     <span class="badge bg-primary me-1">${redirect.link_name}</span>
@@ -755,119 +746,145 @@
                         const infoRow = document.createElement('tr');
                         infoRow.classList.add('bg-dark', 'text-muted');
                         infoRow.innerHTML = `
-                            <td colspan="4" class="text-end py-1">
-                                <small>Mostrando ${data.show_all ? data.total_records : Math.min(data.page * data.limit, data.total_records)} de ${data.total_records} registros</small>
-                            </td>
+                            <td colspan="4" class="text-center">Total de registros: ${data.total_records}</td>
                         `;
                         activityContainer.insertBefore(infoRow, activityContainer.firstChild);
                     }
                 })
                 .catch(error => {
                     console.error('Erro ao carregar atividades recentes:', error);
-                    const activityContainer = document.getElementById('recentActivity');
-                    if (!append) {
-                        activityContainer.innerHTML = `
-                            <tr>
-                                <td colspan="4" class="text-center text-danger">
-                                    Erro ao carregar atividades: ${error.message}
-                                </td>
-                            </tr>
-                        `;
-                    }
-                    // Ocultar botão em caso de erro
+                    document.getElementById('recentActivity').innerHTML = `
+                        <tr>
+                            <td colspan="4" class="text-center text-danger">
+                                Erro ao carregar atividades recentes: ${error.message}
+                            </td>
+                        </tr>
+                    `;
                     document.getElementById('loadMoreActivity').style.display = 'none';
                 });
         }
         
-        function updateStats() {
-            fetch('/api/stats/summary')
+        function updateMapMarkers() {
+            // Obter parâmetros de filtro atuais
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const linkId = document.getElementById('linkSelector').value;
+            
+            // Construir URL com os parâmetros de filtro
+            let url = '/api/stats/map';
+            if (startDate && endDate) {
+                url += `?start_date=${startDate}&end_date=${endDate}`;
+                if (linkId && linkId !== 'all') {
+                    url += `&link_id=${linkId}`;
+                }
+            } else if (linkId && linkId !== 'all') {
+                url += `?link_id=${linkId}`;
+            }
+            
+            // Remover todos os marcadores existentes do mapa
+            clickMap.eachLayer(function(layer) {
+                if (layer instanceof L.Marker) {
+                    clickMap.removeLayer(layer);
+                }
+            });
+            
+            // Adicionar o tile layer novamente se foi removido
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(clickMap);
+            
+            // Fazer a requisição para obter os dados do mapa
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
+                    if (data.locations && data.locations.length > 0) {
+                        // Adicionar marcadores para cada localização
+                        data.locations.forEach(location => {
+                            const size = Math.min(50, Math.max(15, location.count / 2));
+                            const icon = L.divIcon({
+                                className: 'custom-marker',
+                                html: `<div style="background-color: rgba(37, 211, 102, 0.7); width: ${size}px; height: ${size}px; border-radius: 50%; border: 2px solid white;"></div>`,
+                                iconSize: [size, size],
+                                iconAnchor: [size/2, size/2]
+                            });
+                            
+                            L.marker([location.lat, location.lng], {icon: icon})
+                                .addTo(clickMap)
+                                .bindPopup(`<b>${location.count}</b> cliques: ${location.name}`);
+                        });
+                        
+                        // Centralizar o mapa no Brasil
+                        clickMap.setView([-14.235, -51.925], 4);
+                    } else {
+                        // Se não houver dados, mostrar marcador informativo
+                        const icon = L.divIcon({
+                            className: 'custom-marker',
+                            html: `<div style="background-color: rgba(200, 200, 200, 0.7); width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold;">?</div>`,
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 15]
+                        });
+                        
+                        L.marker([-14.235, -51.925], {icon: icon})
+                            .addTo(clickMap)
+                            .bindPopup("Nenhum dado disponível para o filtro selecionado");
+                    }
+                    
+                    // Garantir que o mapa seja renderizado corretamente
+                    clickMap.invalidateSize();
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar dados do mapa:', error);
+                    
+                    // Em caso de erro, mostrar marcador informativo
+                    const icon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="background-color: rgba(255, 0, 0, 0.7); width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold;">!</div>`,
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    });
+                    
+                    L.marker([-14.235, -51.925], {icon: icon})
+                        .addTo(clickMap)
+                        .bindPopup("Erro ao carregar dados do mapa");
+                    
+                    // Centralizar o mapa no Brasil
+                    clickMap.setView([-14.235, -51.925], 4);
+                });
+        }
+        
+        function updateStats() {
+            // Obter parâmetros de filtro atuais
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const linkId = document.getElementById('linkSelector').value;
+            
+            // Construir URL com os parâmetros de filtro
+            let url = '/api/stats/summary';
+            if (startDate && endDate) {
+                url += `?start_date=${startDate}&end_date=${endDate}`;
+                if (linkId && linkId !== 'all') {
+                    url += `&link_id=${linkId}`;
+                }
+            } else if (linkId && linkId !== 'all') {
+                url += `?link_id=${linkId}`;
+            }
+            
+            // Fazer a requisição para obter as estatísticas
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // Atualizar os valores nos cards
                     document.getElementById('totalClicks').textContent = data.total_clicks;
                     document.getElementById('dailyAverage').textContent = data.daily_average;
                     document.getElementById('activeLinks').textContent = data.active_links;
                     document.getElementById('activeNumbers').textContent = data.active_numbers;
                 })
                 .catch(error => {
-                    console.error('Error updating stats:', error);
+                    console.error('Erro ao atualizar estatísticas:', error);
                 });
         }
-        
-        function updateMapMarkers() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-            const linkId = document.getElementById('linkSelector').value;
-            
-            // Buscar dados geográficos filtrados
-            fetch(`/api/stats/map?start_date=${startDate}&end_date=${endDate}&link_id=${linkId}`)
-                .then(response => response.json())
-                .then(data => {
-                    // Limpar marcadores existentes
-                    if (clickMap) {
-                        clickMap.eachLayer(function(layer) {
-                            if (layer instanceof L.Marker) {
-                                clickMap.removeLayer(layer);
-                            }
-                        });
-                        
-                        if (data.locations && data.locations.length > 0) {
-                            // Adicionar novos marcadores baseados nos dados filtrados
-                            data.locations.forEach(location => {
-                                const size = Math.min(50, Math.max(15, location.count / 2));
-                                const icon = L.divIcon({
-                                    className: 'custom-marker',
-                                    html: `<div style="background-color: rgba(37, 211, 102, 0.7); width: ${size}px; height: ${size}px; border-radius: 50%; border: 2px solid white;"></div>`,
-                                    iconSize: [size, size],
-                                    iconAnchor: [size/2, size/2]
-                                });
-                                
-                                L.marker([location.lat, location.lng], {icon: icon})
-                                    .addTo(clickMap)
-                                    .bindPopup(`<b>${location.count}</b> cliques: ${location.name}`);
-                            });
-                            
-                            // Centralizar o mapa no Brasil se houver dados
-                            clickMap.setView([-14.235, -51.925], 4);
-                        } else {
-                            // Se não houver dados para o filtro selecionado, mostrar mensagem
-                            // Adicionar um marcador informativo no centro do Brasil
-                            const icon = L.divIcon({
-                                className: 'custom-marker',
-                                html: `<div style="background-color: rgba(200, 200, 200, 0.7); width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold;">?</div>`,
-                                iconSize: [30, 30],
-                                iconAnchor: [15, 15]
-                            });
-                            
-                            L.marker([-14.235, -51.925], {icon: icon})
-                                .addTo(clickMap)
-                                .bindPopup("Nenhum dado disponível para o filtro selecionado");
-                        }
-                        
-                        // Garantir que o mapa seja renderizado corretamente
-                        clickMap.invalidateSize();
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro ao carregar dados do mapa:', error);
-                    // Em caso de erro, centralizar o mapa no Brasil
-                    if (clickMap) {
-                        clickMap.setView([-14.235, -51.925], 4);
-                        clickMap.invalidateSize();
-                    }
-                });
-        }
-    </script>
-    
-    <!-- Código adicional para garantir que o mapa seja renderizado corretamente -->
-    <script>
-        // Garantir que as funções sejam chamadas após o carregamento completo
-        window.addEventListener('load', function() {
-            // Pequeno atraso para garantir que tudo está pronto
-            setTimeout(function() {
-                // Forçar redimensionamento do mapa
-                if (clickMap) clickMap.invalidateSize();
-            }, 500);
-        });
     </script>
 </body>
-</html> 
+</html>

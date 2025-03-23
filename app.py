@@ -2,8 +2,6 @@ import os
 import random
 import sqlite3
 from datetime import datetime
-import traceback  # Adicionando para capturar stacktrace
-import logging    # Adicionando para melhorar logs
 from flask import Flask, render_template, request, redirect, jsonify, url_for, session, send_from_directory
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -12,13 +10,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Chave secreta para sessões
 app.config['DATABASE'] = os.path.join(os.path.dirname(__file__), 'instance', 'whatsapp_redirect.db')
-
-# Configurar logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 # Garantir que o diretório instance exista
 os.makedirs(os.path.dirname(app.config['DATABASE']), exist_ok=True)
@@ -39,15 +30,27 @@ def init_db():
         conn.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
+                username TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
-                fullname TEXT NOT NULL,
-                email TEXT,
+                fullname TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
-        # Criar tabela de números de WhatsApp
+        # Verificar se existem usuários e criar os padrões se não houver
+        if not conn.execute('SELECT * FROM users').fetchone():
+            # Criar usuários padrão (pedro e felipe)
+            conn.execute('''
+                INSERT INTO users (username, password, fullname)
+                VALUES (?, ?, ?)
+            ''', ('pedro', generate_password_hash('Vera123'), 'Pedro Administrador'))
+            
+            conn.execute('''
+                INSERT INTO users (username, password, fullname)
+                VALUES (?, ?, ?)
+            ''', ('felipe', generate_password_hash('123'), 'Felipe Administrador'))
+
+        # Criar tabela de números com referência ao usuário
         conn.execute('''
             CREATE TABLE IF NOT EXISTS whatsapp_numbers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,32 +58,52 @@ def init_db():
                 phone_number TEXT NOT NULL,
                 description TEXT,
                 is_active INTEGER DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_used TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
         
-        # Criar tabela de links personalizados
+        # Verificar se a coluna is_active existe na tabela whatsapp_numbers
+        result = conn.execute("PRAGMA table_info(whatsapp_numbers)").fetchall()
+        columns = [col['name'] for col in result]
+        
+        # Adicionar coluna is_active se não existir
+        if 'is_active' not in columns:
+            try:
+                conn.execute('ALTER TABLE whatsapp_numbers ADD COLUMN is_active INTEGER DEFAULT 1')
+                print("Coluna is_active adicionada à tabela whatsapp_numbers")
+            except:
+                print("Erro ao adicionar coluna is_active")
+        
+        # Adicionar coluna last_used se não existir
+        if 'last_used' not in columns:
+            try:
+                conn.execute('ALTER TABLE whatsapp_numbers ADD COLUMN last_used TIMESTAMP')
+                print("Coluna last_used adicionada à tabela whatsapp_numbers")
+            except:
+                print("Erro ao adicionar coluna last_used")
+        
+        # Criar tabela de links personalizados com referência ao usuário
         conn.execute('''
             CREATE TABLE IF NOT EXISTS custom_links (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
-                link_name TEXT UNIQUE NOT NULL,
+                link_name TEXT NOT NULL,
                 custom_message TEXT,
+                is_active INTEGER DEFAULT 1,
                 click_count INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id)
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                UNIQUE(user_id, link_name)
             )
         ''')
         
-        # Criar tabela de logs de redirecionamento
+        # Nova tabela para logs de redirecionamentos
         conn.execute('''
             CREATE TABLE IF NOT EXISTS redirect_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 link_id INTEGER NOT NULL,
                 number_id INTEGER NOT NULL,
-                redirect_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                redirect_time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
                 ip_address TEXT,
                 user_agent TEXT,
                 FOREIGN KEY (link_id) REFERENCES custom_links (id),
@@ -88,45 +111,122 @@ def init_db():
             )
         ''')
         
-        conn.commit()
+        # Verificar se as colunas necessárias existem
+        result = conn.execute("PRAGMA table_info(custom_links)").fetchall()
+        columns = [col['name'] for col in result]
+        
+        # Adicionar coluna user_id se não existir
+        if 'user_id' not in columns:
+            try:
+                # Fazer backup dos dados existentes
+                links = conn.execute('SELECT * FROM custom_links').fetchall()
+                # Recriar a tabela com a nova estrutura
+                conn.execute('DROP TABLE IF EXISTS custom_links_old')
+                conn.execute('ALTER TABLE custom_links RENAME TO custom_links_old')
+                
+                # Criar nova tabela com a estrutura correta
+                conn.execute('''
+                    CREATE TABLE custom_links (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        link_name TEXT NOT NULL,
+                        custom_message TEXT,
+                        is_active INTEGER DEFAULT 1,
+                        click_count INTEGER DEFAULT 0,
+                        FOREIGN KEY (user_id) REFERENCES users (id),
+                        UNIQUE(user_id, link_name)
+                    )
+                ''')
+                
+                # Transferir dados, atribuindo a pedro (id=1) por padrão
+                for link in links:
+                    conn.execute('''
+                        INSERT INTO custom_links (id, user_id, link_name, custom_message, is_active)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (link['id'], 1, link['link_name'], link['custom_message'], link['is_active']))
+            except:
+                # Se algo der errado, garantir que a tabela exista
+                conn.execute('''
+                    CREATE TABLE IF NOT EXISTS custom_links (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        link_name TEXT NOT NULL,
+                        custom_message TEXT,
+                        is_active INTEGER DEFAULT 1,
+                        click_count INTEGER DEFAULT 0,
+                        FOREIGN KEY (user_id) REFERENCES users (id),
+                        UNIQUE(user_id, link_name)
+                    )
+                ''')
+        
+        # Adicionar coluna click_count se não existir
+        if 'click_count' not in columns:
+            try:
+                conn.execute('ALTER TABLE custom_links ADD COLUMN click_count INTEGER DEFAULT 0')
+            except:
+                pass  # Ignorar erro se a coluna já existir ou em caso de outra falha
+        
+        # Mesmo processo para a tabela whatsapp_numbers
+        result = conn.execute("PRAGMA table_info(whatsapp_numbers)").fetchall()
+        columns = [col['name'] for col in result]
+        
+        if 'user_id' not in columns:
+            try:
+                # Fazer backup dos dados existentes
+                numbers = conn.execute('SELECT * FROM whatsapp_numbers').fetchall()
+                # Recriar a tabela
+                conn.execute('DROP TABLE IF EXISTS whatsapp_numbers_old')
+                conn.execute('ALTER TABLE whatsapp_numbers RENAME TO whatsapp_numbers_old')
+                
+                # Criar nova tabela com a estrutura correta
+                conn.execute('''
+                    CREATE TABLE whatsapp_numbers (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        phone_number TEXT NOT NULL,
+                        description TEXT,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
+                
+                # Transferir dados, atribuindo a pedro (id=1) por padrão
+                for number in numbers:
+                    conn.execute('''
+                        INSERT INTO whatsapp_numbers (id, user_id, phone_number, description)
+                        VALUES (?, ?, ?, ?)
+                    ''', (number['id'], 1, number['phone_number'], number['description']))
+            except:
+                # Se algo der errado, garantir que a tabela exista
+                conn.execute('''
+                    CREATE TABLE IF NOT EXISTS whatsapp_numbers (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        phone_number TEXT NOT NULL,
+                        description TEXT,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
+                    )
+                ''')
+        
+        # Garantir que cada usuário tenha pelo menos um link padrão
+        for user_id in [1, 2]:  # pedro e felipe
+            conn.execute('''
+                INSERT OR IGNORE INTO custom_links (user_id, link_name, custom_message)
+                VALUES (?, 'padrao', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...')
+            ''', (user_id,))
 
-# Inicializar o banco de dados na inicialização
-try:
-    init_db()
-    print("Banco de dados inicializado com sucesso")
-except Exception as e:
-    print(f"Erro ao inicializar banco de dados: {e}")
-    # Continuar mesmo se houver erro para evitar falha no Railway
+# Inicializar o banco de dados
+init_db()
 
 # Função para verificar se o usuário está logado
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        try:
-            logger.info(f"Verificando autenticação para rota: {request.path}")
-            logger.debug(f"Informações da sessão: {session}")
-            
-            # Verificar se a sessão existe
-            if not session:
-                logger.warning("Sessão vazia ou inexistente")
-                return redirect(url_for('login'))
-                
-            # Verificar se o usuário está logado
-            if 'logged_in' not in session or not session['logged_in']:
-                logger.warning(f"Acesso negado: usuário não está logado")
-                return redirect(url_for('login'))
-                
-            # Verificar se user_id está presente
-            if 'user_id' not in session:
-                logger.warning("user_id não encontrado na sessão")
-                session.clear()  # Limpar sessão inválida
-                return redirect(url_for('login'))
-                
-            return f(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Erro no decorator login_required: {str(e)}")
-            logger.error(traceback.format_exc())
+        print(f"Verificando autenticação para rota: {request.path}")
+        print(f"Informações da sessão: {session}")
+        if 'logged_in' not in session or not session['logged_in']:
+            print(f"Acesso negado: usuário não está logado")
             return redirect(url_for('login'))
+        return f(*args, **kwargs)
     return decorated_function
 
 # Rotas da aplicação
@@ -137,63 +237,29 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
-    try:
-        logger.info(f"Acesso à página de login - método: {request.method}")
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
         
-        if request.method == 'POST':
-            username = request.form['username']
-            password = request.form['password']
-            
-            logger.info(f"Tentativa de login para usuário: {username}")
-            
-            # Buscar usuário no banco de dados
-            try:
-                with get_db_connection() as conn:
-                    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-                    if user:
-                        logger.debug(f"Usuário encontrado: ID={user['id']}")
-                    else:
-                        logger.warning(f"Usuário não encontrado: {username}")
-            except Exception as db_error:
-                logger.error(f"Erro ao consultar banco de dados: {str(db_error)}")
-                error = 'Erro ao acessar banco de dados. Por favor, tente novamente.'
-                return render_template('login.html', error=error)
-            
-            # Verificar credenciais
-            if user and check_password_hash(user['password'], password):
-                try:
-                    # Limpar qualquer sessão existente
-                    session.clear()
-                    
-                    # Configurar a sessão com informações do usuário
-                    session['logged_in'] = True
-                    session['username'] = username
-                    session['user_id'] = user['id']
-                    session['fullname'] = user['fullname']
-                    
-                    logger.info(f"Login bem-sucedido para usuário: {username}, ID: {user['id']}")
-                    
-                    # Verificar se a sessão foi configurada corretamente
-                    if 'logged_in' not in session or not session['logged_in']:
-                        logger.error("Falha ao configurar sessão após login")
-                        error = 'Erro ao configurar sessão. Por favor, tente novamente.'
-                        return render_template('login.html', error=error)
-                        
-                    return redirect(url_for('admin'))
-                except Exception as session_error:
-                    logger.error(f"Erro ao configurar sessão: {str(session_error)}")
-                    error = 'Erro ao processar login. Por favor, tente novamente.'
-            else:
-                error = 'Credenciais inválidas. Por favor, tente novamente.'
-                logger.warning(f"Tentativa de login falhou para usuário: {username}")
+        # Buscar usuário no banco de dados
+        with get_db_connection() as conn:
+            user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
         
-        # Se for método GET ou login falhar
-        return render_template('login.html', error=error)
-    except Exception as e:
-        logger.error(f"Erro não tratado na rota de login: {str(e)}")
-        logger.error(traceback.format_exc())
-        error = 'Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.'
-        return render_template('login.html', error=error)
+        # Verificar credenciais
+        if user and check_password_hash(user['password'], password):
+            session.clear()  # Limpar qualquer sessão existente
+            session['logged_in'] = True
+            session['username'] = username
+            session['user_id'] = user['id']
+            session['fullname'] = user['fullname']
+            print(f"Login bem-sucedido para usuário: {username}, ID: {user['id']}")
+            return redirect(url_for('admin'))
+        else:
+            error = 'Credenciais inválidas. Por favor, tente novamente.'
+            print(f"Tentativa de login falhou para usuário: {username}")
+    
+    # Se for método GET ou login falhar
+    return render_template('login.html', error=error)
 
 @app.route('/logout')
 def logout():
@@ -204,35 +270,25 @@ def logout():
 @app.route('/admin')
 @login_required
 def admin():
-    try:
-        logger.info(f"Acessando /admin - user_id: {session.get('user_id')}")
-        
-        # Obter números e links do banco de dados para o usuário logado
-        user_id = session.get('user_id')
-        
-        if not user_id:
-            logger.error("Erro: user_id não encontrado na sessão")
-            return redirect(url_for('login'))
-            
-        logger.debug(f"Conectando ao banco de dados para user_id: {user_id}")
-        with get_db_connection() as conn:
-            numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (user_id,)).fetchall()
-            links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
-            
-            # Converter para lista para detectar problemas potenciais
-            numbers_list = [dict(row) for row in numbers]
-            links_list = [dict(row) for row in links]
-            
-            logger.info(f"Encontrados {len(numbers_list)} números e {len(links_list)} links")
-            
-            return render_template('admin.html', numbers=numbers_list, links=links_list)
-    except Exception as e:
-        # Registrar o erro detalhadamente
-        logger.error(f"Erro ao acessar /admin: {str(e)}")
-        logger.error(traceback.format_exc())
-        
-        # Retornar uma página de erro amigável
-        return render_template('index.html', error='Ocorreu um erro ao carregar a página de administração. Por favor, tente novamente ou contate o suporte.'), 500
+    # Redirecionar para a página de administração principal
+    return redirect(url_for('administracao'))
+
+# Rota alternativa para a página de administração
+@app.route('/administracao')
+@login_required
+def administracao():
+    user_id = session.get('user_id')
+    with get_db_connection() as conn:
+        links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
+        numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (user_id,)).fetchall()
+    
+    return render_template('administracao.html', numbers=numbers, links=links)
+
+# Rota para a página de dashboard
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template('dashboard.html')
 
 # API para gerenciar números
 @app.route('/api/numbers', methods=['GET', 'POST'])
@@ -308,16 +364,10 @@ def delete_number(number_id):
                 return jsonify({'success': False, 'error': 'Número não encontrado ou sem permissão'}), 403
             
             if request.method == 'DELETE':
-                # Verificar se é o último número ativo
-                active_count = conn.execute('SELECT COUNT(*) as count FROM whatsapp_numbers WHERE user_id = ? AND is_active = 1', 
-                                       (user_id,)).fetchone()['count']
-                
-                if active_count <= 1 and number['is_active'] == 1:
-                    return jsonify({'success': False, 'error': 'Não é possível excluir o último número ativo. Adicione outro número antes de excluir este.'}), 400
-                
-                # Em vez de excluir, marcar como inativo (soft delete)
-                conn.execute('UPDATE whatsapp_numbers SET is_active = 0 WHERE id = ?', (number_id,))
-                return jsonify({'success': True, 'message': 'Número desativado com sucesso'})
+                # Remover o número ao invés de apenas desativá-lo
+                conn.execute('DELETE FROM whatsapp_numbers WHERE id = ?', (number_id,))
+                conn.commit()
+                return jsonify({'success': True, 'message': 'Número excluído com sucesso'})
             
             elif request.method == 'PUT':
                 # Atualizar informações do número
@@ -334,13 +384,6 @@ def delete_number(number_id):
                         params.append(description)
                     
                     if is_active is not None:
-                        # Verificar se não está desativando o último número ativo
-                        if is_active == 0 and number['is_active'] == 1:
-                            active_count = conn.execute('SELECT COUNT(*) as count FROM whatsapp_numbers WHERE user_id = ? AND is_active = 1', 
-                                                   (user_id,)).fetchone()['count']
-                            if active_count <= 1:
-                                return jsonify({'success': False, 'error': 'Não é possível desativar o último número ativo.'}), 400
-                        
                         update_fields.append('is_active = ?')
                         params.append(is_active)
                     
@@ -653,37 +696,52 @@ def get_recent_redirects():
     print(f"Parâmetros SQL: {params}")
     
     with get_db_connection() as conn:
-        # Verificar consistência de dados antes de executar a consulta principal
-        validate_data_consistency(conn, user_id, link_id, start_date, end_date)
-        
-        # Obter o número total de registros para essa consulta (sem paginação)
-        count_query = f'''
-            SELECT COUNT(*) as total
+        # Preparar a query que agrupa redirecionamentos por minuto, número e link para evitar duplicatas
+        # Usamos a função strftime para truncar o timestamp ao minuto
+        query = f'''
+            SELECT 
+                MAX(rl.id) as id,
+                MAX(rl.redirect_time) as redirect_time,
+                cl.link_name,
+                rl.number_id,
+                COALESCE(wn.phone_number, 'Número excluído') as phone_number,
+                COALESCE(wn.description, 'Redirecionamento para número que foi excluído') as number_description,
+                rl.ip_address,
+                COUNT(*) as access_count,
+                MAX(rl.user_agent) as user_agent
             FROM redirect_logs rl
             JOIN custom_links cl ON rl.link_id = cl.id
-            JOIN whatsapp_numbers wn ON rl.number_id = wn.id
+            LEFT JOIN whatsapp_numbers wn ON rl.number_id = wn.id
             WHERE {link_condition} {date_condition}
+            GROUP BY 
+                strftime('%Y-%m-%d %H:%M', rl.redirect_time),
+                rl.number_id,
+                cl.link_name,
+                rl.ip_address
+            ORDER BY MAX(rl.redirect_time) DESC
+        '''
+        
+        # Obter contagem total considerando a agregação por minuto
+        count_query = f'''
+            SELECT COUNT(*) as total FROM (
+                SELECT 
+                    strftime('%Y-%m-%d %H:%M', rl.redirect_time) as minute,
+                    rl.number_id,
+                    cl.link_name,
+                    rl.ip_address
+                FROM redirect_logs rl
+                JOIN custom_links cl ON rl.link_id = cl.id
+                WHERE {link_condition} {date_condition}
+                GROUP BY 
+                    minute,
+                    rl.number_id,
+                    cl.link_name,
+                    rl.ip_address
+            )
         '''
         
         total_records = conn.execute(count_query, params).fetchone()['total']
-        print(f"Total de registros para atividades recentes: {total_records}")
-        
-        # Preparar a query base
-        query = f'''
-            SELECT 
-                rl.id,
-                rl.redirect_time,
-                cl.link_name,
-                wn.phone_number,
-                wn.description as number_description,
-                rl.ip_address,
-                rl.user_agent
-            FROM redirect_logs rl
-            JOIN custom_links cl ON rl.link_id = cl.id
-            JOIN whatsapp_numbers wn ON rl.number_id = wn.id
-            WHERE {link_condition} {date_condition}
-            ORDER BY rl.redirect_time DESC
-        '''
+        print(f"Total de registros para atividades recentes (agrupados): {total_records}")
         
         # Se não for para mostrar todos, adicionar LIMIT e OFFSET para paginação
         query_params = params.copy()
@@ -693,14 +751,15 @@ def get_recent_redirects():
             query_params.append((page - 1) * limit)
             print(f"Aplicando paginação: limite={limit}, página={page}")
         else:
-            print(f"Retornando TODAS as atividades recentes ({total_records} registros)")
+            print(f"Retornando TODAS as atividades recentes (agrupados) ({total_records} registros)")
         
         recent_redirects = conn.execute(query, query_params).fetchall()
         
         # Formatar os resultados para JSON
         result = []
         for redirect in recent_redirects:
-            result.append({
+            access_count = redirect['access_count']
+            result_item = {
                 'id': redirect['id'],
                 'redirect_time': redirect['redirect_time'],
                 'link_name': redirect['link_name'],
@@ -708,7 +767,14 @@ def get_recent_redirects():
                 'number_description': redirect['number_description'],
                 'ip_address': redirect['ip_address'],
                 'user_agent': redirect['user_agent']
-            })
+            }
+            
+            # Adicionar indicador de múltiplos cliques para cliques agrupados
+            if access_count > 1:
+                result_item['multiple_clicks'] = True
+                result_item['click_count'] = access_count
+            
+            result.append(result_item)
         
         return jsonify({
             'limit': limit,
@@ -749,12 +815,15 @@ def get_stats_summary():
     redirect_params = params.copy() + date_params
     
     with get_db_connection() as conn:
-        # Total de cliques em todos os links do usuário
-        total_clicks_query = 'SELECT SUM(click_count) as total FROM custom_links WHERE user_id = ?'
-        if link_id != 'all' and link_id.isdigit():
-            total_clicks_query = 'SELECT SUM(click_count) as total FROM custom_links WHERE user_id = ? AND id = ?'
+        # Total de cliques usando a tabela de redirecionamentos diretamente
+        total_clicks_query = f'''
+            SELECT COUNT(*) as total 
+            FROM redirect_logs rl
+            JOIN custom_links cl ON rl.link_id = cl.id
+            WHERE {link_condition} {date_condition}
+        '''
         
-        total_clicks = conn.execute(total_clicks_query, params).fetchone()['total'] or 0
+        total_clicks = conn.execute(total_clicks_query, params + date_params).fetchone()['total'] or 0
         
         # Total de links ativos
         active_links = conn.execute('''
@@ -1007,6 +1076,31 @@ def get_stats_by_number():
                 "access_count": access_count
             })
         
+        # Verificar se há registros órfãos (redirecionamentos com números que foram excluídos)
+        orphan_query = f'''
+            SELECT COUNT(*) as count
+            FROM redirect_logs rl
+            JOIN custom_links cl ON rl.link_id = cl.id
+            WHERE {link_condition} {date_condition}
+            AND rl.number_id NOT IN (SELECT id FROM whatsapp_numbers WHERE user_id = ?)
+        '''
+        
+        orphan_params = params.copy()
+        orphan_params.append(user_id)
+        
+        orphan_count = conn.execute(orphan_query, orphan_params).fetchone()['count']
+        
+        # Se houver registros órfãos, adicionar como um "número fantasma" nas estatísticas
+        if orphan_count > 0:
+            result.append({
+                "id": 0,
+                "phone_number": "Número excluído",
+                "description": "Redirecionamentos para números que foram excluídos",
+                "access_count": orphan_count
+            })
+            total_por_chip += orphan_count
+            print(f"Encontrados {orphan_count} redirecionamentos para números excluídos")
+        
         # Verificar discrepâncias na contagem
         print(f"Total contado por números: {total_por_chip}, Total geral: {total_count}")
         if total_por_chip != total_count:
@@ -1169,29 +1263,6 @@ def get_map_stats():
             # Se não temos cliques para os filtros, retornar lista vazia
             return jsonify({"locations": []})
 
-# Rota para a página de dashboard
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    user_id = session.get('user_id')
-    with get_db_connection() as conn:
-        links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
-        numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (user_id,)).fetchall()
-    
-    return render_template('dashboard.html', links=links, numbers=numbers)
-
-# Rota para a página de estatísticas
-@app.route('/estatisticas')
-@login_required
-def estatisticas():
-    user_id = session.get('user_id')
-    with get_db_connection() as conn:
-        links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
-        numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (user_id,)).fetchall()
-    
-    # Retornar o template específico de estatísticas em vez do dashboard
-    return render_template('estatisticas.html', links=links, numbers=numbers)
-
 # Adicionar função para corrigir registros inconsistentes
 def fix_data_inconsistencies(conn):
     """
@@ -1247,53 +1318,35 @@ def fix_data_inconsistencies(conn):
 @app.before_first_request
 def before_first_request():
     """Executado antes da primeira requisição ao aplicativo"""
-    try:
-        with get_db_connection() as conn:
-            fix_data_inconsistencies(conn)
-            
-            # Também podemos verificar outras inconsistências aqui
-            print("Verificando consistência geral dos dados...")
-            # Verificar se existe algum link sem usuário válido
-            orphan_links = conn.execute('''
-                SELECT cl.id, cl.link_name
-                FROM custom_links cl
-                LEFT JOIN users u ON cl.user_id = u.id
-                WHERE u.id IS NULL
-            ''').fetchall()
-            
-            if orphan_links:
-                print(f"Encontrados {len(orphan_links)} links sem usuário válido.")
-    except Exception as e:
-        print(f"Erro na verificação de consistência: {e}")
-        # Não deixar falhar no Railway
-        pass
+    with get_db_connection() as conn:
+        fix_data_inconsistencies(conn)
+        
+        # Também podemos verificar outras inconsistências aqui
+        print("Verificando consistência geral dos dados...")
+        # Verificar se existe algum link sem usuário válido
+        orphan_links = conn.execute('''
+            SELECT cl.id, cl.link_name
+            FROM custom_links cl
+            LEFT JOIN users u ON cl.user_id = u.id
+            WHERE u.id IS NULL
+        ''').fetchall()
+        
+        if orphan_links:
+            print(f"Encontrados {len(orphan_links)} links sem usuário válido.")
+            # Se necessário implementar correção aqui
 
 # Configuração para permitir acesso a recursos estáticos
 @app.route('/static/<path:filename>')
 def serve_static(filename):
-    try:
-        logger.info(f"Acessando arquivo estático: {filename}")
-        return send_from_directory('static', filename)
-    except Exception as e:
-        logger.error(f"Erro ao acessar arquivo estático {filename}: {str(e)}")
-        return f"Erro ao carregar arquivo: {filename}", 404
-
-# Capturar erros 500 para logar detalhes
-@app.errorhandler(500)
-def handle_500(e):
-    logger.error(f"Erro 500 interno: {str(e)}")
-    logger.error(traceback.format_exc())
-    return render_template('index.html', error="Ocorreu um erro interno no servidor. Por favor, tente novamente mais tarde."), 500
+    return send_from_directory('static', filename)
 
 if __name__ == '__main__':
-    # Configurações para ambiente de desenvolvimento local
+    # Inicializar verificação de consistência de dados
+    with app.app_context():
+        with get_db_connection() as conn:
+            fix_data_inconsistencies(conn)
+    
     # Executar a aplicação com configurações corretas para acesso externo
-    try:
-        port = int(os.environ.get('PORT', 5000))  # Alterando porta padrão para 5000
-        debug = os.environ.get('DEBUG', 'False').lower() == 'true'
-        logger.info(f"Iniciando servidor na porta {port} com debug={debug}")
-        app.run(host='0.0.0.0', port=port, debug=debug)
-    except Exception as e:
-        logger.critical(f"Erro ao iniciar o servidor: {str(e)}")
-        logger.critical(traceback.format_exc())
-        print(f"Erro crítico ao iniciar: {str(e)}")
+    import os
+    port = int(os.environ.get('PORT', 3333))
+    app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_ENV') == 'development')

@@ -2,6 +2,8 @@ import os
 import random
 import sqlite3
 from datetime import datetime
+import traceback  # Adicionando para capturar stacktrace
+import logging    # Adicionando para melhorar logs
 from flask import Flask, render_template, request, redirect, jsonify, url_for, session, send_from_directory
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,6 +12,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Chave secreta para sessões
 app.config['DATABASE'] = os.path.join(os.path.dirname(__file__), 'instance', 'whatsapp_redirect.db')
+
+# Configurar logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Garantir que o diretório instance exista
 os.makedirs(os.path.dirname(app.config['DATABASE']), exist_ok=True)
@@ -93,12 +102,31 @@ except Exception as e:
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        print(f"Verificando autenticação para rota: {request.path}")
-        print(f"Informações da sessão: {session}")
-        if 'logged_in' not in session or not session['logged_in']:
-            print(f"Acesso negado: usuário não está logado")
+        try:
+            logger.info(f"Verificando autenticação para rota: {request.path}")
+            logger.debug(f"Informações da sessão: {session}")
+            
+            # Verificar se a sessão existe
+            if not session:
+                logger.warning("Sessão vazia ou inexistente")
+                return redirect(url_for('login'))
+                
+            # Verificar se o usuário está logado
+            if 'logged_in' not in session or not session['logged_in']:
+                logger.warning(f"Acesso negado: usuário não está logado")
+                return redirect(url_for('login'))
+                
+            # Verificar se user_id está presente
+            if 'user_id' not in session:
+                logger.warning("user_id não encontrado na sessão")
+                session.clear()  # Limpar sessão inválida
+                return redirect(url_for('login'))
+                
+            return f(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Erro no decorator login_required: {str(e)}")
+            logger.error(traceback.format_exc())
             return redirect(url_for('login'))
-        return f(*args, **kwargs)
     return decorated_function
 
 # Rotas da aplicação
@@ -109,29 +137,63 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+    try:
+        logger.info(f"Acesso à página de login - método: {request.method}")
         
-        # Buscar usuário no banco de dados
-        with get_db_connection() as conn:
-            user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        if request.method == 'POST':
+            username = request.form['username']
+            password = request.form['password']
+            
+            logger.info(f"Tentativa de login para usuário: {username}")
+            
+            # Buscar usuário no banco de dados
+            try:
+                with get_db_connection() as conn:
+                    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+                    if user:
+                        logger.debug(f"Usuário encontrado: ID={user['id']}")
+                    else:
+                        logger.warning(f"Usuário não encontrado: {username}")
+            except Exception as db_error:
+                logger.error(f"Erro ao consultar banco de dados: {str(db_error)}")
+                error = 'Erro ao acessar banco de dados. Por favor, tente novamente.'
+                return render_template('login.html', error=error)
+            
+            # Verificar credenciais
+            if user and check_password_hash(user['password'], password):
+                try:
+                    # Limpar qualquer sessão existente
+                    session.clear()
+                    
+                    # Configurar a sessão com informações do usuário
+                    session['logged_in'] = True
+                    session['username'] = username
+                    session['user_id'] = user['id']
+                    session['fullname'] = user['fullname']
+                    
+                    logger.info(f"Login bem-sucedido para usuário: {username}, ID: {user['id']}")
+                    
+                    # Verificar se a sessão foi configurada corretamente
+                    if 'logged_in' not in session or not session['logged_in']:
+                        logger.error("Falha ao configurar sessão após login")
+                        error = 'Erro ao configurar sessão. Por favor, tente novamente.'
+                        return render_template('login.html', error=error)
+                        
+                    return redirect(url_for('admin'))
+                except Exception as session_error:
+                    logger.error(f"Erro ao configurar sessão: {str(session_error)}")
+                    error = 'Erro ao processar login. Por favor, tente novamente.'
+            else:
+                error = 'Credenciais inválidas. Por favor, tente novamente.'
+                logger.warning(f"Tentativa de login falhou para usuário: {username}")
         
-        # Verificar credenciais
-        if user and check_password_hash(user['password'], password):
-            session.clear()  # Limpar qualquer sessão existente
-            session['logged_in'] = True
-            session['username'] = username
-            session['user_id'] = user['id']
-            session['fullname'] = user['fullname']
-            print(f"Login bem-sucedido para usuário: {username}, ID: {user['id']}")
-            return redirect(url_for('admin'))
-        else:
-            error = 'Credenciais inválidas. Por favor, tente novamente.'
-            print(f"Tentativa de login falhou para usuário: {username}")
-    
-    # Se for método GET ou login falhar
-    return render_template('login.html', error=error)
+        # Se for método GET ou login falhar
+        return render_template('login.html', error=error)
+    except Exception as e:
+        logger.error(f"Erro não tratado na rota de login: {str(e)}")
+        logger.error(traceback.format_exc())
+        error = 'Ocorreu um erro ao processar sua solicitação. Por favor, tente novamente.'
+        return render_template('login.html', error=error)
 
 @app.route('/logout')
 def logout():
@@ -142,12 +204,35 @@ def logout():
 @app.route('/admin')
 @login_required
 def admin():
-    # Obter números e links do banco de dados para o usuário logado
-    user_id = session.get('user_id')
-    with get_db_connection() as conn:
-        numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (user_id,)).fetchall()
-        links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
-    return render_template('admin.html', numbers=numbers, links=links)
+    try:
+        logger.info(f"Acessando /admin - user_id: {session.get('user_id')}")
+        
+        # Obter números e links do banco de dados para o usuário logado
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            logger.error("Erro: user_id não encontrado na sessão")
+            return redirect(url_for('login'))
+            
+        logger.debug(f"Conectando ao banco de dados para user_id: {user_id}")
+        with get_db_connection() as conn:
+            numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (user_id,)).fetchall()
+            links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
+            
+            # Converter para lista para detectar problemas potenciais
+            numbers_list = [dict(row) for row in numbers]
+            links_list = [dict(row) for row in links]
+            
+            logger.info(f"Encontrados {len(numbers_list)} números e {len(links_list)} links")
+            
+            return render_template('admin.html', numbers=numbers_list, links=links_list)
+    except Exception as e:
+        # Registrar o erro detalhadamente
+        logger.error(f"Erro ao acessar /admin: {str(e)}")
+        logger.error(traceback.format_exc())
+        
+        # Retornar uma página de erro amigável
+        return render_template('index.html', error='Ocorreu um erro ao carregar a página de administração. Por favor, tente novamente ou contate o suporte.'), 500
 
 # API para gerenciar números
 @app.route('/api/numbers', methods=['GET', 'POST'])
@@ -1088,6 +1173,17 @@ def get_map_stats():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    user_id = session.get('user_id')
+    with get_db_connection() as conn:
+        links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
+        numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (user_id,)).fetchall()
+    
+    return render_template('dashboard.html', links=links, numbers=numbers)
+
+# Rota para a página de estatísticas
+@app.route('/estatisticas')
+@login_required
+def estatisticas():
     user_id = session.get('user_id')
     with get_db_connection() as conn:
         links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()

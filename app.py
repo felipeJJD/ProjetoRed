@@ -30,27 +30,15 @@ def init_db():
         conn.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL UNIQUE,
+                username TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
-                fullname TEXT,
+                fullname TEXT NOT NULL,
+                email TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         
-        # Verificar se existem usuários e criar os padrões se não houver
-        if not conn.execute('SELECT * FROM users').fetchone():
-            # Criar usuários padrão (pedro e felipe)
-            conn.execute('''
-                INSERT INTO users (username, password, fullname)
-                VALUES (?, ?, ?)
-            ''', ('pedro', generate_password_hash('Vera123'), 'Pedro Administrador'))
-            
-            conn.execute('''
-                INSERT INTO users (username, password, fullname)
-                VALUES (?, ?, ?)
-            ''', ('felipe', generate_password_hash('123'), 'Felipe Administrador'))
-
-        # Criar tabela de números com referência ao usuário
+        # Criar tabela de números de WhatsApp
         conn.execute('''
             CREATE TABLE IF NOT EXISTS whatsapp_numbers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,52 +46,32 @@ def init_db():
                 phone_number TEXT NOT NULL,
                 description TEXT,
                 is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_used TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
         
-        # Verificar se a coluna is_active existe na tabela whatsapp_numbers
-        result = conn.execute("PRAGMA table_info(whatsapp_numbers)").fetchall()
-        columns = [col['name'] for col in result]
-        
-        # Adicionar coluna is_active se não existir
-        if 'is_active' not in columns:
-            try:
-                conn.execute('ALTER TABLE whatsapp_numbers ADD COLUMN is_active INTEGER DEFAULT 1')
-                print("Coluna is_active adicionada à tabela whatsapp_numbers")
-            except:
-                print("Erro ao adicionar coluna is_active")
-        
-        # Adicionar coluna last_used se não existir
-        if 'last_used' not in columns:
-            try:
-                conn.execute('ALTER TABLE whatsapp_numbers ADD COLUMN last_used TIMESTAMP')
-                print("Coluna last_used adicionada à tabela whatsapp_numbers")
-            except:
-                print("Erro ao adicionar coluna last_used")
-        
-        # Criar tabela de links personalizados com referência ao usuário
+        # Criar tabela de links personalizados
         conn.execute('''
             CREATE TABLE IF NOT EXISTS custom_links (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
-                link_name TEXT NOT NULL,
+                link_name TEXT UNIQUE NOT NULL,
                 custom_message TEXT,
-                is_active INTEGER DEFAULT 1,
                 click_count INTEGER DEFAULT 0,
-                FOREIGN KEY (user_id) REFERENCES users (id),
-                UNIQUE(user_id, link_name)
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
         
-        # Nova tabela para logs de redirecionamentos
+        # Criar tabela de logs de redirecionamento
         conn.execute('''
             CREATE TABLE IF NOT EXISTS redirect_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 link_id INTEGER NOT NULL,
                 number_id INTEGER NOT NULL,
-                redirect_time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+                redirect_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 ip_address TEXT,
                 user_agent TEXT,
                 FOREIGN KEY (link_id) REFERENCES custom_links (id),
@@ -111,111 +79,15 @@ def init_db():
             )
         ''')
         
-        # Verificar se as colunas necessárias existem
-        result = conn.execute("PRAGMA table_info(custom_links)").fetchall()
-        columns = [col['name'] for col in result]
-        
-        # Adicionar coluna user_id se não existir
-        if 'user_id' not in columns:
-            try:
-                # Fazer backup dos dados existentes
-                links = conn.execute('SELECT * FROM custom_links').fetchall()
-                # Recriar a tabela com a nova estrutura
-                conn.execute('DROP TABLE IF EXISTS custom_links_old')
-                conn.execute('ALTER TABLE custom_links RENAME TO custom_links_old')
-                
-                # Criar nova tabela com a estrutura correta
-                conn.execute('''
-                    CREATE TABLE custom_links (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        link_name TEXT NOT NULL,
-                        custom_message TEXT,
-                        is_active INTEGER DEFAULT 1,
-                        click_count INTEGER DEFAULT 0,
-                        FOREIGN KEY (user_id) REFERENCES users (id),
-                        UNIQUE(user_id, link_name)
-                    )
-                ''')
-                
-                # Transferir dados, atribuindo a pedro (id=1) por padrão
-                for link in links:
-                    conn.execute('''
-                        INSERT INTO custom_links (id, user_id, link_name, custom_message, is_active)
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (link['id'], 1, link['link_name'], link['custom_message'], link['is_active']))
-            except:
-                # Se algo der errado, garantir que a tabela exista
-                conn.execute('''
-                    CREATE TABLE IF NOT EXISTS custom_links (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        link_name TEXT NOT NULL,
-                        custom_message TEXT,
-                        is_active INTEGER DEFAULT 1,
-                        click_count INTEGER DEFAULT 0,
-                        FOREIGN KEY (user_id) REFERENCES users (id),
-                        UNIQUE(user_id, link_name)
-                    )
-                ''')
-        
-        # Adicionar coluna click_count se não existir
-        if 'click_count' not in columns:
-            try:
-                conn.execute('ALTER TABLE custom_links ADD COLUMN click_count INTEGER DEFAULT 0')
-            except:
-                pass  # Ignorar erro se a coluna já existir ou em caso de outra falha
-        
-        # Mesmo processo para a tabela whatsapp_numbers
-        result = conn.execute("PRAGMA table_info(whatsapp_numbers)").fetchall()
-        columns = [col['name'] for col in result]
-        
-        if 'user_id' not in columns:
-            try:
-                # Fazer backup dos dados existentes
-                numbers = conn.execute('SELECT * FROM whatsapp_numbers').fetchall()
-                # Recriar a tabela
-                conn.execute('DROP TABLE IF EXISTS whatsapp_numbers_old')
-                conn.execute('ALTER TABLE whatsapp_numbers RENAME TO whatsapp_numbers_old')
-                
-                # Criar nova tabela com a estrutura correta
-                conn.execute('''
-                    CREATE TABLE whatsapp_numbers (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        phone_number TEXT NOT NULL,
-                        description TEXT,
-                        FOREIGN KEY (user_id) REFERENCES users (id)
-                    )
-                ''')
-                
-                # Transferir dados, atribuindo a pedro (id=1) por padrão
-                for number in numbers:
-                    conn.execute('''
-                        INSERT INTO whatsapp_numbers (id, user_id, phone_number, description)
-                        VALUES (?, ?, ?, ?)
-                    ''', (number['id'], 1, number['phone_number'], number['description']))
-            except:
-                # Se algo der errado, garantir que a tabela exista
-                conn.execute('''
-                    CREATE TABLE IF NOT EXISTS whatsapp_numbers (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        phone_number TEXT NOT NULL,
-                        description TEXT,
-                        FOREIGN KEY (user_id) REFERENCES users (id)
-                    )
-                ''')
-        
-        # Garantir que cada usuário tenha pelo menos um link padrão
-        for user_id in [1, 2]:  # pedro e felipe
-            conn.execute('''
-                INSERT OR IGNORE INTO custom_links (user_id, link_name, custom_message)
-                VALUES (?, 'padrao', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...')
-            ''', (user_id,))
+        conn.commit()
 
-# Inicializar o banco de dados
-init_db()
+# Inicializar o banco de dados na inicialização
+try:
+    init_db()
+    print("Banco de dados inicializado com sucesso")
+except Exception as e:
+    print(f"Erro ao inicializar banco de dados: {e}")
+    # Continuar mesmo se houver erro para evitar falha no Railway
 
 # Função para verificar se o usuário está logado
 def login_required(f):
@@ -1278,22 +1150,26 @@ def fix_data_inconsistencies(conn):
 @app.before_first_request
 def before_first_request():
     """Executado antes da primeira requisição ao aplicativo"""
-    with get_db_connection() as conn:
-        fix_data_inconsistencies(conn)
-        
-        # Também podemos verificar outras inconsistências aqui
-        print("Verificando consistência geral dos dados...")
-        # Verificar se existe algum link sem usuário válido
-        orphan_links = conn.execute('''
-            SELECT cl.id, cl.link_name
-            FROM custom_links cl
-            LEFT JOIN users u ON cl.user_id = u.id
-            WHERE u.id IS NULL
-        ''').fetchall()
-        
-        if orphan_links:
-            print(f"Encontrados {len(orphan_links)} links sem usuário válido.")
-            # Se necessário implementar correção aqui
+    try:
+        with get_db_connection() as conn:
+            fix_data_inconsistencies(conn)
+            
+            # Também podemos verificar outras inconsistências aqui
+            print("Verificando consistência geral dos dados...")
+            # Verificar se existe algum link sem usuário válido
+            orphan_links = conn.execute('''
+                SELECT cl.id, cl.link_name
+                FROM custom_links cl
+                LEFT JOIN users u ON cl.user_id = u.id
+                WHERE u.id IS NULL
+            ''').fetchall()
+            
+            if orphan_links:
+                print(f"Encontrados {len(orphan_links)} links sem usuário válido.")
+    except Exception as e:
+        print(f"Erro na verificação de consistência: {e}")
+        # Não deixar falhar no Railway
+        pass
 
 # Configuração para permitir acesso a recursos estáticos
 @app.route('/static/<path:filename>')
@@ -1301,10 +1177,8 @@ def serve_static(filename):
     return send_from_directory('static', filename)
 
 if __name__ == '__main__':
-    # Inicializar verificação de consistência de dados
-    with app.app_context():
-        with get_db_connection() as conn:
-            fix_data_inconsistencies(conn)
-    
+    # Configurações para ambiente de desenvolvimento local
     # Executar a aplicação com configurações corretas para acesso externo
-    app.run(host='0.0.0.0', port=3333, debug=True)
+    port = int(os.environ.get('PORT', 3333))
+    debug = os.environ.get('DEBUG', 'False').lower() == 'true'
+    app.run(host='0.0.0.0', port=port, debug=debug)

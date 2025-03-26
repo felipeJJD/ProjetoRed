@@ -22,7 +22,7 @@ app.secret_key = 'your_secret_key'  # Chave secreta para sessões
 # Configuração do banco de dados
 app.config['USE_POSTGRES'] = True  # Ativar PostgreSQL no Railway
 app.config['DATABASE'] = os.path.join(os.path.dirname(__file__), 'instance', 'whatsapp_redirect.db')
-app.config['DATABASE_URL'] = 'postgresql://postgres:********@containers-us-west-57.railway.app:6905/railway'
+app.config['DATABASE_URL'] = 'postgresql://postgres:nsAgxYUGJuIRXTalVIdclsTDecKEsgpc@switchyard.proxy.rlwy.net:24583/railway'
 
 # Garantir que o diretório instance exista
 os.makedirs(os.path.dirname(app.config['DATABASE']), exist_ok=True)

@@ -32,9 +32,48 @@ function showToast(message, type = 'success') {
     });
 }
 
-// Obter URL base do servidor
+// Função para obter URL base
 function getBaseUrl() {
     return window.location.protocol + '//' + window.location.host;
+}
+
+// Função para detectar se é uma URL válida
+function isValidUrl(string) {
+    try {
+        new URL(string);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+// Função para validar o nome do link
+function isValidLinkName(linkName) {
+    if (!linkName) return false;
+    
+    // Verificar caracteres permitidos (letras, números, hífen e barra)
+    if (/[^a-zA-Z0-9\-\/]/.test(linkName)) {
+        return false;
+    }
+    
+    // Verificar se tem mais de uma barra
+    const segments = linkName.split('/');
+    if (segments.length > 2) {
+        return false;
+    }
+    
+    // Verificar se algum segmento está vazio
+    if (segments.some(s => s === '')) {
+        return false;
+    }
+    
+    // Verificar palavras reservadas
+    const reservedRoutes = ['api', 'login', 'logout', 'admin', 'dashboard', 'administracao', 'static', 'redirect'];
+    if (segments.some(s => reservedRoutes.includes(s))) {
+        return false;
+    }
+    
+    return true;
 }
 
 // DOM carregado

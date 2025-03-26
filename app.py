@@ -421,6 +421,15 @@ def manage_links():
             if not link_name:
                 return jsonify({'success': False, 'error': 'Nome do link é obrigatório'}), 400
             
+            # Permitir barras no link_name, mas limitar a 2 níveis
+            segments = link_name.split('/')
+            if len(segments) > 2:
+                return jsonify({'success': False, 'error': 'O link pode ter no máximo dois segmentos (uma barra)'}), 400
+            
+            # Verificar se algum segmento é uma rota reservada
+            if any(segment in reserved_routes for segment in segments):
+                return jsonify({'success': False, 'error': 'O link contém palavras reservadas não permitidas'}), 400
+            
             # Verificar se o link já existe para este usuário
             existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ?', 
                                   (link_name, user_id)).fetchone()
@@ -468,6 +477,15 @@ def update_link(link_id):
         
         # Se estiver tentando atualizar o nome do link, verificar se o novo nome já existe
         if 'link_name' in data and data['link_name'] != link['link_name']:
+            # Permitir barras no link_name, mas limitar a 2 níveis
+            segments = data['link_name'].split('/')
+            if len(segments) > 2:
+                return jsonify({'success': False, 'error': 'O link pode ter no máximo dois segmentos (uma barra)'}), 400
+            
+            # Verificar se algum segmento é uma rota reservada
+            if any(segment in reserved_routes for segment in segments):
+                return jsonify({'success': False, 'error': 'O link contém palavras reservadas não permitidas'}), 400
+                
             existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ? AND id != ?', 
                                  (data['link_name'], user_id, link_id)).fetchone()
             if existing:
@@ -495,16 +513,20 @@ reserved_routes = [
 ]
 
 # Rota para redirecionamento direto ao WhatsApp (mantém o prefixo redirect por compatibilidade)
-@app.route('/redirect/<link_name>')
+@app.route('/redirect/<path:link_name>')
 def redirect_whatsapp_with_prefix(link_name):
     return redirect_whatsapp_func(link_name)
 
 # Nova rota simplificada, sem o prefixo "redirect"
-@app.route('/<link_name>')
+@app.route('/<path:link_name>')
 def redirect_whatsapp(link_name):
-    # Verificar se o link_name não é uma rota reservada
-    if link_name in reserved_routes:
+    # Se o link contiver barras, verificamos apenas o primeiro segmento
+    first_segment = link_name.split('/')[0] if '/' in link_name else link_name
+    
+    # Verificar se o primeiro segmento não é uma rota reservada
+    if first_segment in reserved_routes:
         abort(404)  # Retorna 404 Not Found para evitar conflito com rotas existentes
+    
     return redirect_whatsapp_func(link_name)
 
 # Função que contém a lógica de redirecionamento

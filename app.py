@@ -546,8 +546,8 @@ def redirect_whatsapp(link_name):
             # Registro de sucesso
             redirect_time = (datetime.now() - redirect_start_time).total_seconds()
             
-            # Novo código: Verificar e exibir a página de redirecionamento
-            return render_template('redirect.html', whatsapp_url=whatsapp_url, custom_message=link['custom_message'] or 'Olá!')
+            # Fazer redirecionamento direto para o WhatsApp ao invés de renderizar a página intermediária
+            return redirect(whatsapp_url)
     except Exception as e:
         # Retornar uma página de erro genérica
         redirect_time = (datetime.now() - redirect_start_time).total_seconds()

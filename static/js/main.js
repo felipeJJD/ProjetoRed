@@ -87,28 +87,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const updateLinkBtn = document.getElementById('updateLink');
     const linksList = document.getElementById('linksList');
     const linkNameInput = document.getElementById('linkName');
-    const previewLink = document.getElementById('previewLink');
     const editLinkNameInput = document.getElementById('editLinkName');
-    const editPreviewLink = document.getElementById('editPreviewLink');
     
-    // Função para atualizar a visualização prévia do link
-    function updateLinkPreview() {
-        const baseUrl = getBaseUrl() + '/';
-        const linkName = this.value || 'seu-link';
-        if (this.id === 'linkName') {
-            previewLink.textContent = baseUrl + linkName;
-        } else {
-            editPreviewLink.textContent = baseUrl + linkName;
-        }
-    }
-    
-    // Adicionar listener para visualização prévia do link
-    if (linkNameInput) {
-        linkNameInput.addEventListener('input', updateLinkPreview);
-    }
-    
+    // Atualizar preview apenas para o modal de edição
     if (editLinkNameInput) {
-        editLinkNameInput.addEventListener('input', updateLinkPreview);
+        editLinkNameInput.addEventListener('input', function() {
+            const baseUrl = getBaseUrl() + '/';
+            const linkName = this.value || 'seu-link';
+            const editPreviewLink = document.getElementById('editPreviewLink');
+            if (editPreviewLink) {
+                editPreviewLink.textContent = baseUrl + linkName;
+            }
+        });
     }
 
     // Adicionar novo número

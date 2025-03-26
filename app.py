@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, redirect, jsonify, url_for, s
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests  # Para chamadas API externas
+import re
 
 # Configuração do Flask
 app = Flask(__name__)
@@ -421,14 +422,9 @@ def manage_links():
             if not link_name:
                 return jsonify({'success': False, 'error': 'Nome do link é obrigatório'}), 400
             
-            # Permitir barras no link_name, mas limitar a 2 níveis
-            segments = link_name.split('/')
-            if len(segments) > 2:
-                return jsonify({'success': False, 'error': 'O link pode ter no máximo dois segmentos (uma barra)'}), 400
-            
-            # Verificar se algum segmento é uma rota reservada
-            if any(segment in reserved_routes for segment in segments):
-                return jsonify({'success': False, 'error': 'O link contém palavras reservadas não permitidas'}), 400
+            # Verificar caracteres permitidos e formato
+            if not is_valid_link_name(link_name):
+                return jsonify({'success': False, 'error': 'Nome do link contém caracteres inválidos ou formato incorreto'}), 400
             
             # Verificar se o link já existe para este usuário
             existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ?', 
@@ -443,6 +439,28 @@ def manage_links():
         # Se for GET, retornar todos os links
         links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
         return jsonify([dict(link) for link in links])
+
+def is_valid_link_name(link_name):
+    # Verificar caracteres permitidos (letras, números, hífen e barra)
+    if re.search(r'[^a-zA-Z0-9\-\/]', link_name):
+        return False
+    
+    # Verificar se tem mais de uma barra
+    segments = link_name.split('/')
+    if len(segments) > 2:
+        return False
+    
+    # Verificar se algum segmento está vazio
+    if '' in segments:
+        return False
+    
+    # Verificar rotas reservadas
+    reserved_routes = ['api', 'login', 'logout', 'admin', 'dashboard', 'administracao', 'static', 'redirect']
+    for segment in segments:
+        if segment in reserved_routes:
+            return False
+    
+    return True
 
 @app.route('/api/links/<int:link_id>', methods=['DELETE'])
 @login_required
@@ -477,14 +495,9 @@ def update_link(link_id):
         
         # Se estiver tentando atualizar o nome do link, verificar se o novo nome já existe
         if 'link_name' in data and data['link_name'] != link['link_name']:
-            # Permitir barras no link_name, mas limitar a 2 níveis
-            segments = data['link_name'].split('/')
-            if len(segments) > 2:
-                return jsonify({'success': False, 'error': 'O link pode ter no máximo dois segmentos (uma barra)'}), 400
-            
-            # Verificar se algum segmento é uma rota reservada
-            if any(segment in reserved_routes for segment in segments):
-                return jsonify({'success': False, 'error': 'O link contém palavras reservadas não permitidas'}), 400
+            # Verificar caracteres permitidos e formato
+            if not is_valid_link_name(data['link_name']):
+                return jsonify({'success': False, 'error': 'Nome do link contém caracteres inválidos ou formato incorreto'}), 400
                 
             existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ? AND id != ?', 
                                  (data['link_name'], user_id, link_id)).fetchone()

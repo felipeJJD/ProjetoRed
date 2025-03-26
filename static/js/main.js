@@ -51,28 +51,35 @@ function isValidUrl(string) {
 function isValidLinkName(linkName) {
     if (!linkName) return false;
     
+    console.log("Validando link: " + linkName);
+    
     // Verificar caracteres permitidos (letras, números, hífen e barra)
     if (/[^a-zA-Z0-9\-\/]/.test(linkName)) {
+        console.log("Link contém caracteres inválidos");
         return false;
     }
     
     // Verificar se tem mais de uma barra
     const segments = linkName.split('/');
     if (segments.length > 2) {
+        console.log("Link contém mais de uma barra");
         return false;
     }
     
     // Verificar se algum segmento está vazio
     if (segments.some(s => s === '')) {
+        console.log("Link contém segmento vazio");
         return false;
     }
     
     // Verificar palavras reservadas
     const reservedRoutes = ['api', 'login', 'logout', 'admin', 'dashboard', 'administracao', 'static', 'redirect'];
     if (segments.some(s => reservedRoutes.includes(s))) {
+        console.log("Link contém palavra reservada");
         return false;
     }
     
+    console.log("Link válido!");
     return true;
 }
 

@@ -528,6 +528,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Função para mostrar toast de notificação 
+        function showToast(message, type = 'success') {
+            alert(message);
+        }
+        
         // Validar e atualizar preview do link
         function updateLinkPreview() {
             const linkName = document.getElementById('linkName').value.trim();
@@ -547,6 +552,12 @@
             if (/[^a-zA-Z0-9\-\/]/.test(linkName)) {
                 isValid = false;
                 message = 'Apenas letras, números e hífen são permitidos.';
+            }
+            
+            // Verificar se algum segmento está vazio
+            if (segments.some(s => s === '')) {
+                isValid = false;
+                message = 'Segmentos vazios não são permitidos.';
             }
             
             // Verificar rotas reservadas
@@ -575,6 +586,8 @@
                     linkPreview.parentElement.classList.add('text-danger');
                 }
             }
+            
+            return isValid;
         }
         
         // Adicionar evento para atualizar preview
@@ -601,6 +614,62 @@
                                 alert('Não foi possível copiar o link. Tente novamente.');
                             }
                         );
+                    });
+                });
+            }
+            
+            // Adicionar funcionalidade ao botão Salvar
+            const saveButton = document.getElementById('saveLink');
+            if (saveButton) {
+                saveButton.addEventListener('click', function() {
+                    const linkName = document.getElementById('linkName').value.trim();
+                    const customMessage = document.getElementById('customMessage').value.trim();
+                    
+                    if (!linkName) {
+                        alert('Por favor, digite um nome para o link');
+                        return;
+                    }
+                    
+                    // Validar usando nossa função
+                    if (!updateLinkPreview()) {
+                        alert('Nome de link inválido. Verifique os requisitos.');
+                        return;
+                    }
+                    
+                    // Enviar solicitação para adicionar link
+                    fetch(window.location.protocol + '//' + window.location.host + '/api/links', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            link_name: linkName,
+                            custom_message: customMessage
+                        }),
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Fechar modal
+                            const modal = bootstrap.Modal.getInstance(document.getElementById('addLinkModal'));
+                            modal.hide();
+                            
+                            // Limpar formulário
+                            document.getElementById('linkName').value = '';
+                            document.getElementById('customMessage').value = '';
+                            
+                            // Mostrar mensagem de sucesso
+                            alert(data.message || 'Link adicionado com sucesso');
+                            
+                            // Recarregar a página para atualizar a lista
+                            window.location.reload();
+                        } else {
+                            alert(data.error || 'Erro ao adicionar link');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        alert('Ocorreu um erro ao adicionar o link');
                     });
                 });
             }

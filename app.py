@@ -587,9 +587,73 @@ def redirect_whatsapp_func(link_name):
                 # Link não encontrado ou inativo
                 return render_template('index.html', error='Link não encontrado ou inativo')
             
-            # Se houver mais de um link com este nome (de diferentes usuários), escolher aleatoriamente
-            link = random.choice(links)
-            print(f"Link '{link_name}' encontrado para múltiplos usuários, selecionado: ID {link['id']} (usuário: {link['owner_username']})")
+            # Se houver mais de um link com este nome (de diferentes usuários), usar balanceamento justo
+            if len(links) > 1:
+                # Obter estatísticas de uso dos links nas últimas 24 horas (por usuário)
+                user_counts = {}
+                for link in links:
+                    user_id = link['owner_id']
+                    usage_count = conn.execute('''
+                        SELECT COUNT(*) as count
+                        FROM redirect_logs rl
+                        JOIN custom_links cl ON rl.link_id = cl.id
+                        WHERE cl.user_id = ? AND cl.link_name = ?
+                        AND rl.redirect_time >= datetime('now', '-1 day')
+                    ''', (user_id, link_name)).fetchone()['count']
+                    
+                    user_counts[user_id] = usage_count
+                    
+                print(f"Estatísticas de uso do link '{link_name}' por usuário: {user_counts}")
+                
+                # Calcular pesos para balanceamento (inverso do uso - menos usado recebe maior peso)
+                if sum(user_counts.values()) > 0:  # Se temos dados de uso
+                    # Encontrar valor máximo + 1 para evitar divisão por zero
+                    max_count = max(user_counts.values()) + 1
+                    
+                    # Inverter contagens para pesos (menos uso = mais peso)
+                    weights = {user_id: max_count - count for user_id, count in user_counts.items()}
+                    
+                    # Normalizar os pesos
+                    total_weight = sum(weights.values())
+                    norm_weights = {user_id: weight/total_weight for user_id, weight in weights.items()}
+                    
+                    # Mapear os pesos para links
+                    link_weights = []
+                    for link in links:
+                        link_weights.append(norm_weights.get(link['owner_id'], 1.0/len(links)))
+                    
+                    # Escolher link baseado nos pesos
+                    link = random.choices(links, weights=link_weights, k=1)[0]
+                    
+                    print(f"Link '{link_name}' selecionado com base em pesos: ID {link['id']} (usuário: {link['owner_username']})")
+                else:
+                    # Se não há dados de uso, fazer rodízio simples
+                    # Verificar último usuário que recebeu este link
+                    last_log = conn.execute('''
+                        SELECT cl.user_id
+                        FROM redirect_logs rl
+                        JOIN custom_links cl ON rl.link_id = cl.id
+                        WHERE cl.link_name = ?
+                        ORDER BY rl.redirect_time DESC
+                        LIMIT 1
+                    ''', (link_name,)).fetchone()
+                    
+                    if last_log:
+                        # Escolher outro usuário diferente do último
+                        last_user_id = last_log['user_id']
+                        other_links = [l for l in links if l['owner_id'] != last_user_id]
+                        if other_links:
+                            link = random.choice(other_links)
+                        else:
+                            link = random.choice(links)
+                    else:
+                        # Se não há histórico, escolha aleatória
+                        link = random.choice(links)
+                    
+                    print(f"Link '{link_name}' selecionado por rodízio: ID {link['id']} (usuário: {link['owner_username']})")
+            else:
+                # Se tiver apenas um link, usar ele
+                link = links[0]
             
             # Incrementar contador de cliques
             conn.execute('UPDATE custom_links SET click_count = click_count + 1 WHERE id = ?', (link['id'],))

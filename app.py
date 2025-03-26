@@ -6,10 +6,23 @@ from flask import Flask, render_template, request, redirect, jsonify, url_for, s
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# Adicionar importações para PostgreSQL
+try:
+    import psycopg2
+    import psycopg2.extras
+    POSTGRES_AVAILABLE = True
+except ImportError:
+    POSTGRES_AVAILABLE = False
+    print("AVISO: psycopg2 não está instalado. Suporte a PostgreSQL não disponível.")
+
 # Configuração do Flask
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Chave secreta para sessões
+
+# Configuração do banco de dados
+app.config['USE_POSTGRES'] = True  # Ativar PostgreSQL no Railway
 app.config['DATABASE'] = os.path.join(os.path.dirname(__file__), 'instance', 'whatsapp_redirect.db')
+app.config['DATABASE_URL'] = 'postgresql://postgres:********@containers-us-west-57.railway.app:6905/railway'
 
 # Garantir que o diretório instance exista
 os.makedirs(os.path.dirname(app.config['DATABASE']), exist_ok=True)
@@ -20,14 +33,65 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True  # Recarregar templates automaticamen
 
 # Funções para gerenciar banco de dados
 def get_db_connection():
-    conn = sqlite3.connect(app.config['DATABASE'])
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Retorna uma conexão com o banco de dados configurado"""
+    if app.config.get('USE_POSTGRES', False) and POSTGRES_AVAILABLE:
+        # Conexão PostgreSQL
+        conn = psycopg2.connect(app.config['DATABASE_URL'])
+        conn.autocommit = True
+        return conn
+    else:
+        # Conexão SQLite (padrão)
+        conn = sqlite3.connect(app.config['DATABASE'])
+        conn.row_factory = sqlite3.Row
+        return conn
 
+def get_db_cursor(conn):
+    """Retorna um cursor adequado para o tipo de banco de dados"""
+    if app.config.get('USE_POSTGRES', False) and POSTGRES_AVAILABLE:
+        # Cursor PostgreSQL que retorna dicionários
+        return conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    else:
+        # O SQLite já está configurado com row_factory
+        return conn.cursor()
+
+def execute_query(conn, query, params=None, fetchall=False, fetchone=False):
+    """
+    Executa uma consulta SQL adaptada para o banco em uso
+    
+    Args:
+        conn: Conexão com o banco
+        query: Consulta SQL
+        params: Parâmetros da consulta (opcional)
+        fetchall: Se deve retornar todos os resultados
+        fetchone: Se deve retornar apenas o primeiro resultado
+    
+    Returns:
+        Resultados da consulta ou cursor
+    """
+    # Substituir ? por %s se estiver usando PostgreSQL
+    if app.config.get('USE_POSTGRES', False) and POSTGRES_AVAILABLE:
+        query = query.replace('?', '%s')
+    
+    cursor = get_db_cursor(conn)
+    
+    if params:
+        cursor.execute(query, params)
+    else:
+        cursor.execute(query)
+    
+    if fetchall:
+        return cursor.fetchall()
+    elif fetchone:
+        return cursor.fetchone()
+    else:
+        return cursor
+
+# Funções para gerenciar banco de dados
 def init_db():
+    """Inicializa o banco de dados (compatível com SQLite e PostgreSQL)"""
     with get_db_connection() as conn:
         # Criar tabela de usuários
-        conn.execute('''
+        execute_query(conn, '''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL UNIQUE,
@@ -38,20 +102,22 @@ def init_db():
         ''')
         
         # Verificar se existem usuários e criar os padrões se não houver
-        if not conn.execute('SELECT * FROM users').fetchone():
+        user = execute_query(conn, 'SELECT * FROM users LIMIT 1', fetchone=True)
+        
+        if not user:
             # Criar usuários padrão (pedro e felipe)
-            conn.execute('''
+            execute_query(conn, '''
                 INSERT INTO users (username, password, fullname)
                 VALUES (?, ?, ?)
             ''', ('pedro', generate_password_hash('Vera123'), 'Pedro Administrador'))
             
-            conn.execute('''
+            execute_query(conn, '''
                 INSERT INTO users (username, password, fullname)
                 VALUES (?, ?, ?)
             ''', ('felipe', generate_password_hash('123'), 'Felipe Administrador'))
 
         # Criar tabela de números com referência ao usuário
-        conn.execute('''
+        execute_query(conn, '''
             CREATE TABLE IF NOT EXISTS whatsapp_numbers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -64,27 +130,28 @@ def init_db():
         ''')
         
         # Verificar se a coluna is_active existe na tabela whatsapp_numbers
-        result = conn.execute("PRAGMA table_info(whatsapp_numbers)").fetchall()
-        columns = [col['name'] for col in result]
-        
-        # Adicionar coluna is_active se não existir
-        if 'is_active' not in columns:
-            try:
-                conn.execute('ALTER TABLE whatsapp_numbers ADD COLUMN is_active INTEGER DEFAULT 1')
-                print("Coluna is_active adicionada à tabela whatsapp_numbers")
-            except:
-                print("Erro ao adicionar coluna is_active")
-        
-        # Adicionar coluna last_used se não existir
-        if 'last_used' not in columns:
-            try:
-                conn.execute('ALTER TABLE whatsapp_numbers ADD COLUMN last_used TIMESTAMP')
-                print("Coluna last_used adicionada à tabela whatsapp_numbers")
-            except:
-                print("Erro ao adicionar coluna last_used")
+        if not app.config.get('USE_POSTGRES', False):  # Apenas para SQLite
+            result = execute_query(conn, "PRAGMA table_info(whatsapp_numbers)", fetchall=True)
+            columns = [col['name'] for col in result]
+            
+            # Adicionar coluna is_active se não existir
+            if 'is_active' not in columns:
+                try:
+                    execute_query(conn, 'ALTER TABLE whatsapp_numbers ADD COLUMN is_active INTEGER DEFAULT 1')
+                    print("Coluna is_active adicionada à tabela whatsapp_numbers")
+                except:
+                    print("Erro ao adicionar coluna is_active")
+            
+            # Adicionar coluna last_used se não existir
+            if 'last_used' not in columns:
+                try:
+                    execute_query(conn, 'ALTER TABLE whatsapp_numbers ADD COLUMN last_used TIMESTAMP')
+                    print("Coluna last_used adicionada à tabela whatsapp_numbers")
+                except:
+                    print("Erro ao adicionar coluna last_used")
         
         # Criar tabela de links personalizados com referência ao usuário
-        conn.execute('''
+        execute_query(conn, '''
             CREATE TABLE IF NOT EXISTS custom_links (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
@@ -98,12 +165,12 @@ def init_db():
         ''')
         
         # Nova tabela para logs de redirecionamentos
-        conn.execute('''
+        execute_query(conn, '''
             CREATE TABLE IF NOT EXISTS redirect_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 link_id INTEGER NOT NULL,
                 number_id INTEGER NOT NULL,
-                redirect_time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+                redirect_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 ip_address TEXT,
                 user_agent TEXT,
                 FOREIGN KEY (link_id) REFERENCES custom_links (id),
@@ -112,107 +179,21 @@ def init_db():
         ''')
         
         # Verificar se as colunas necessárias existem
-        result = conn.execute("PRAGMA table_info(custom_links)").fetchall()
-        columns = [col['name'] for col in result]
+        if not app.config.get('USE_POSTGRES', False):  # Apenas para SQLite
+            result = execute_query(conn, "PRAGMA table_info(custom_links)", fetchall=True)
+            columns = [col['name'] for col in result]
+            
+            # Adicionar coluna click_count se não existir
+            if 'click_count' not in columns:
+                try:
+                    execute_query(conn, 'ALTER TABLE custom_links ADD COLUMN click_count INTEGER DEFAULT 0')
+                except:
+                    pass  # Ignorar erro se a coluna já existir ou em caso de outra falha
         
-        # Adicionar coluna user_id se não existir
-        if 'user_id' not in columns:
-            try:
-                # Fazer backup dos dados existentes
-                links = conn.execute('SELECT * FROM custom_links').fetchall()
-                # Recriar a tabela com a nova estrutura
-                conn.execute('DROP TABLE IF EXISTS custom_links_old')
-                conn.execute('ALTER TABLE custom_links RENAME TO custom_links_old')
-                
-                # Criar nova tabela com a estrutura correta
-                conn.execute('''
-                    CREATE TABLE custom_links (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        link_name TEXT NOT NULL,
-                        custom_message TEXT,
-                        is_active INTEGER DEFAULT 1,
-                        click_count INTEGER DEFAULT 0,
-                        FOREIGN KEY (user_id) REFERENCES users (id),
-                        UNIQUE(user_id, link_name)
-                    )
-                ''')
-                
-                # Transferir dados, atribuindo a pedro (id=1) por padrão
-                for link in links:
-                    conn.execute('''
-                        INSERT INTO custom_links (id, user_id, link_name, custom_message, is_active)
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (link['id'], 1, link['link_name'], link['custom_message'], link['is_active']))
-            except:
-                # Se algo der errado, garantir que a tabela exista
-                conn.execute('''
-                    CREATE TABLE IF NOT EXISTS custom_links (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        link_name TEXT NOT NULL,
-                        custom_message TEXT,
-                        is_active INTEGER DEFAULT 1,
-                        click_count INTEGER DEFAULT 0,
-                        FOREIGN KEY (user_id) REFERENCES users (id),
-                        UNIQUE(user_id, link_name)
-                    )
-                ''')
-        
-        # Adicionar coluna click_count se não existir
-        if 'click_count' not in columns:
-            try:
-                conn.execute('ALTER TABLE custom_links ADD COLUMN click_count INTEGER DEFAULT 0')
-            except:
-                pass  # Ignorar erro se a coluna já existir ou em caso de outra falha
-        
-        # Mesmo processo para a tabela whatsapp_numbers
-        result = conn.execute("PRAGMA table_info(whatsapp_numbers)").fetchall()
-        columns = [col['name'] for col in result]
-        
-        if 'user_id' not in columns:
-            try:
-                # Fazer backup dos dados existentes
-                numbers = conn.execute('SELECT * FROM whatsapp_numbers').fetchall()
-                # Recriar a tabela
-                conn.execute('DROP TABLE IF EXISTS whatsapp_numbers_old')
-                conn.execute('ALTER TABLE whatsapp_numbers RENAME TO whatsapp_numbers_old')
-                
-                # Criar nova tabela com a estrutura correta
-                conn.execute('''
-                    CREATE TABLE whatsapp_numbers (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        phone_number TEXT NOT NULL,
-                        description TEXT,
-                        FOREIGN KEY (user_id) REFERENCES users (id)
-                    )
-                ''')
-                
-                # Transferir dados, atribuindo a pedro (id=1) por padrão
-                for number in numbers:
-                    conn.execute('''
-                        INSERT INTO whatsapp_numbers (id, user_id, phone_number, description)
-                        VALUES (?, ?, ?, ?)
-                    ''', (number['id'], 1, number['phone_number'], number['description']))
-            except:
-                # Se algo der errado, garantir que a tabela exista
-                conn.execute('''
-                    CREATE TABLE IF NOT EXISTS whatsapp_numbers (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER NOT NULL,
-                        phone_number TEXT NOT NULL,
-                        description TEXT,
-                        FOREIGN KEY (user_id) REFERENCES users (id)
-                    )
-                ''')
-        
-        # Garantir que cada usuário tenha pelo menos um link padrão
-        for user_id in [1, 2]:  # pedro e felipe
-            conn.execute('''
-                INSERT OR IGNORE INTO custom_links (user_id, link_name, custom_message)
-                VALUES (?, 'padrao', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...')
-            ''', (user_id,))
+        if app.config.get('USE_POSTGRES', False):
+            conn.commit()
+    
+    print("Banco de dados inicializado com sucesso.")
 
 # Inicializar o banco de dados
 init_db()

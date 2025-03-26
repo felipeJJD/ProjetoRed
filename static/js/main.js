@@ -208,9 +208,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Validação do formato do link (apenas letras, números e hífens)
-            if (!/^[a-zA-Z0-9-]+$/.test(linkName)) {
-                showToast('O nome do link deve conter apenas letras, números e hífens', 'danger');
+            // Validação do formato do link usando a função isValidLinkName
+            if (!isValidLinkName(linkName)) {
+                showToast('Nome de link inválido. Use apenas letras, números, hífens e no máximo uma barra. Evite palavras reservadas.', 'danger');
                 return;
             }
             
@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Limpar formulário
                     document.getElementById('linkName').value = '';
-                    document.getElementById('customMessage').value = 'Você será redirecionado para um de nossos atendentes. Aguarde um momento...';
+                    document.getElementById('customMessage').value = '';
                     
                     // Mostrar mensagem de sucesso
                     showToast(data.message);
@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Recarregar a página para atualizar a lista
                     window.location.reload();
                 } else {
-                    showToast(data.message, 'danger');
+                    showToast(data.error || 'Erro ao adicionar link', 'danger');
                 }
             })
             .catch(error => {
@@ -342,9 +342,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Validação do formato do link (apenas letras, números e hífens)
-            if (!/^[a-zA-Z0-9-]+$/.test(linkName)) {
-                showToast('O nome do link deve conter apenas letras, números e hífens', 'danger');
+            // Validação do formato do link usando a função isValidLinkName
+            if (!isValidLinkName(linkName)) {
+                showToast('Nome de link inválido. Use apenas letras, números, hífens e no máximo uma barra. Evite palavras reservadas.', 'danger');
                 return;
             }
             
@@ -367,12 +367,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     modal.hide();
                     
                     // Mostrar mensagem de sucesso
-                    showToast(data.message);
+                    showToast(data.message || 'Link atualizado com sucesso');
                     
                     // Recarregar a página para atualizar a lista
                     window.location.reload();
                 } else {
-                    showToast(data.message, 'danger');
+                    showToast(data.error || 'Erro ao atualizar link', 'danger');
                 }
             })
             .catch(error => {

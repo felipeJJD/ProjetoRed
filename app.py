@@ -421,35 +421,15 @@ def manage_links():
             if not link_name:
                 return jsonify({'success': False, 'error': 'Nome do link é obrigatório'}), 400
             
-            # Verificar se o link já existe para este usuário (apenas para este usuário)
+            # Verificar se o link já existe para este usuário
             existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ?', 
                                   (link_name, user_id)).fetchone()
             if existing:
                 return jsonify({'success': False, 'error': 'Este link já existe para o seu usuário'}), 400
             
-            # Verificar se o nome do link é uma rota reservada
-            if link_name in reserved_routes:
-                return jsonify({'success': False, 'error': 'Este nome de link é reservado pelo sistema'}), 400
-            
-            # Inserir o link (agora permitindo que outros usuários tenham o mesmo nome de link)
             conn.execute('INSERT INTO custom_links (user_id, link_name, custom_message) VALUES (?, ?, ?)', 
                        (user_id, link_name, custom_message))
-            
-            # Verificar se outro usuário já tem este mesmo link (apenas para informação)
-            other_user_links = conn.execute('''
-                SELECT cl.id, u.username 
-                FROM custom_links cl
-                JOIN users u ON cl.user_id = u.id
-                WHERE cl.link_name = ? AND cl.user_id != ?
-            ''', (link_name, user_id)).fetchall()
-            
-            message = 'Link adicionado com sucesso'
-            if other_user_links:
-                # Informar que outros usuários têm o mesmo link, mas isso é permitido
-                users = ', '.join([link['username'] for link in other_user_links])
-                message += f'. Este link também existe para: {users}'
-            
-            return jsonify({'success': True, 'message': message})
+            return jsonify({'success': True, 'message': 'Link adicionado com sucesso'})
         
         # Se for GET, retornar todos os links
         links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
@@ -486,25 +466,12 @@ def update_link(link_id):
         if not link:
             return jsonify({'success': False, 'error': 'Link não encontrado ou sem permissão'}), 403
         
-        # Se estiver tentando atualizar o nome do link, verificar se o novo nome já existe para este usuário
+        # Se estiver tentando atualizar o nome do link, verificar se o novo nome já existe
         if 'link_name' in data and data['link_name'] != link['link_name']:
-            # Verificar se o novo nome é uma rota reservada
-            if data['link_name'] in reserved_routes:
-                return jsonify({'success': False, 'error': 'Este nome de link é reservado pelo sistema'}), 400
-                
-            # Verificar apenas para o usuário atual (permitindo nomes iguais para usuários diferentes)
             existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ? AND id != ?', 
                                  (data['link_name'], user_id, link_id)).fetchone()
             if existing:
-                return jsonify({'success': False, 'error': 'Este nome de link já está em uso pelo seu usuário'}), 400
-            
-            # Verificar se outros usuários já têm este nome de link (apenas para informação)
-            other_user_links = conn.execute('''
-                SELECT cl.id, u.username 
-                FROM custom_links cl
-                JOIN users u ON cl.user_id = u.id
-                WHERE cl.link_name = ? AND cl.user_id != ?
-            ''', (data['link_name'], user_id)).fetchall()
+                return jsonify({'success': False, 'error': 'Este nome de link já está em uso'}), 400
         
         # Atualizar o link
         if 'link_name' in data:
@@ -519,15 +486,7 @@ def update_link(link_id):
             conn.execute('UPDATE custom_links SET is_active = ? WHERE id = ?', 
                       (1 if data['is_active'] else 0, link_id))
         
-        # Preparar mensagem de resposta
-        message = 'Link atualizado com sucesso'
-        
-        # Adicionar informação sobre outros usuários com o mesmo nome de link
-        if 'link_name' in data and other_user_links:
-            users = ', '.join([link['username'] for link in other_user_links])
-            message += f'. Este link também existe para: {users}'
-        
-        return jsonify({'success': True, 'message': message})
+        return jsonify({'success': True})
 
 # Lista de rotas reservadas que não podem ser usadas como link_name
 reserved_routes = [
@@ -574,86 +533,17 @@ def redirect_whatsapp_func(link_name):
     
     try:
         with get_db_connection() as conn:
-            # Procurar todos os usuários que possuem este link ativo
-            links = conn.execute('''
-                SELECT cl.*, u.id as owner_id, u.username as owner_username
+            # Procurar qual usuário é dono do link
+            link = conn.execute('''
+                SELECT cl.*, u.id as owner_id 
                 FROM custom_links cl
                 JOIN users u ON cl.user_id = u.id
                 WHERE cl.link_name = ? AND cl.is_active = 1
-                ORDER BY cl.id
-            ''', (link_name,)).fetchall()
+            ''', (link_name,)).fetchone()
             
-            if not links:
+            if not link:
                 # Link não encontrado ou inativo
                 return render_template('index.html', error='Link não encontrado ou inativo')
-            
-            # Se houver mais de um link com este nome (de diferentes usuários), usar balanceamento justo
-            if len(links) > 1:
-                # Obter estatísticas de uso dos links nas últimas 24 horas (por usuário)
-                user_counts = {}
-                for link in links:
-                    user_id = link['owner_id']
-                    usage_count = conn.execute('''
-                        SELECT COUNT(*) as count
-                        FROM redirect_logs rl
-                        JOIN custom_links cl ON rl.link_id = cl.id
-                        WHERE cl.user_id = ? AND cl.link_name = ?
-                        AND rl.redirect_time >= datetime('now', '-1 day')
-                    ''', (user_id, link_name)).fetchone()['count']
-                    
-                    user_counts[user_id] = usage_count
-                    
-                print(f"Estatísticas de uso do link '{link_name}' por usuário: {user_counts}")
-                
-                # Calcular pesos para balanceamento (inverso do uso - menos usado recebe maior peso)
-                if sum(user_counts.values()) > 0:  # Se temos dados de uso
-                    # Encontrar valor máximo + 1 para evitar divisão por zero
-                    max_count = max(user_counts.values()) + 1
-                    
-                    # Inverter contagens para pesos (menos uso = mais peso)
-                    weights = {user_id: max_count - count for user_id, count in user_counts.items()}
-                    
-                    # Normalizar os pesos
-                    total_weight = sum(weights.values())
-                    norm_weights = {user_id: weight/total_weight for user_id, weight in weights.items()}
-                    
-                    # Mapear os pesos para links
-                    link_weights = []
-                    for link in links:
-                        link_weights.append(norm_weights.get(link['owner_id'], 1.0/len(links)))
-                    
-                    # Escolher link baseado nos pesos
-                    link = random.choices(links, weights=link_weights, k=1)[0]
-                    
-                    print(f"Link '{link_name}' selecionado com base em pesos: ID {link['id']} (usuário: {link['owner_username']})")
-                else:
-                    # Se não há dados de uso, fazer rodízio simples
-                    # Verificar último usuário que recebeu este link
-                    last_log = conn.execute('''
-                        SELECT cl.user_id
-                        FROM redirect_logs rl
-                        JOIN custom_links cl ON rl.link_id = cl.id
-                        WHERE cl.link_name = ?
-                        ORDER BY rl.redirect_time DESC
-                        LIMIT 1
-                    ''', (link_name,)).fetchone()
-                    
-                    if last_log:
-                        # Escolher outro usuário diferente do último
-                        last_user_id = last_log['user_id']
-                        other_links = [l for l in links if l['owner_id'] != last_user_id]
-                        if other_links:
-                            link = random.choice(other_links)
-                        else:
-                            link = random.choice(links)
-                    else:
-                        # Se não há histórico, escolha aleatória
-                        link = random.choice(links)
-                    
-                    print(f"Link '{link_name}' selecionado por rodízio: ID {link['id']} (usuário: {link['owner_username']})")
-            else:
-                # Se tiver apenas um link, usar ele
-                link = links[0]
             
             # Incrementar contador de cliques
             conn.execute('UPDATE custom_links SET click_count = click_count + 1 WHERE id = ?', (link['id'],))

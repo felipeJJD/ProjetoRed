@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administração - REDZAP</title>
+    <!-- Adicionando favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='img/logos/Subtract.png') }}" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
@@ -156,6 +158,35 @@
         body .text-muted, html .text-muted {
             color: #ffffff !important;
         }
+        
+        /* Estilos do logo */
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+        
+        .logo-container img {
+            max-width: 180px;
+            height: auto;
+        }
+        
+        .header-logo {
+            max-height: 35px;
+            margin-right: 10px;
+        }
+        
+        .tab-section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .tab-section-header img {
+            height: 24px;
+            margin-right: 10px;
+        }
     </style>
     
     <!-- Script para forçar cores após o carregamento da página -->
@@ -172,8 +203,8 @@
         <div class="row">
             <!-- Menu Lateral -->
             <div class="col-md-2 sidebar">
-                <div class="d-flex align-items-center mb-4 ps-3">
-                    <span class="logo-text">REDZAP</span>
+                <div class="logo-container mb-4">
+                    <img src="{{ url_for('static', filename='img/logos/Group 1171275297.png') }}" alt="REDZAP Logo" class="img-fluid">
                 </div>
                 <ul class="nav flex-column">
                     <li class="nav-item">
@@ -201,6 +232,17 @@
             
             <!-- Conteúdo Principal -->
             <div class="col-md-10 main-content">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ url_for('static', filename='img/logos/Subtract-2.png') }}" alt="REDZAP Icon" class="header-logo">
+                        <h2>Painel de Administração</h2>
+                    </div>
+                    <div>
+                        <span class="badge bg-secondary me-2">
+                            <i class="bi bi-person-circle me-1"></i> {{ session.username }}
+                        </span>
+                    </div>
+                </div>
                 <div class="row justify-content-center">
                     <div class="col-md-11">
                         <div class="card shadow mb-4">

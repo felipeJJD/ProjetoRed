@@ -3,16 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redirecionador de WhatsApp</title>
+    <title>REDZAP - Redirecionador de WhatsApp</title>
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='img/logos/Subtract.png') }}" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .logo-container {
+            margin-bottom: 25px;
+        }
+        
+        .logo-container img {
+            max-width: 200px;
+            height: auto;
+        }
+        
+        .card {
+            border-radius: 15px;
+            overflow: hidden;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            background: linear-gradient(to right, #25d366, #128C7E);
+            padding: 20px;
+        }
+        
+        .btn-success {
+            background-color: #25d366;
+            border-color: #25d366;
+            font-weight: bold;
+            padding: 12px 24px;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-success:hover {
+            background-color: #128C7E;
+            border-color: #128C7E;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .icon-logo {
+            height: 30px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <div class="row justify-content-center mt-5">
             <div class="col-md-8 text-center">
+                <div class="logo-container">
+                    <img src="{{ url_for('static', filename='img/logos/Group 1171275296.png') }}" alt="REDZAP Logo" class="img-fluid">
+                </div>
+                
                 <div class="card shadow">
-                    <div class="card-header bg-success text-white">
+                    <div class="card-header text-white">
                         <h1 class="card-title">Redirecionador de WhatsApp</h1>
                     </div>
                     <div class="card-body">
@@ -21,7 +72,8 @@
                         
                         <div class="mt-4">
                             <a href="{{ url_for('redirect_whatsapp', link_name='padrao') }}" class="btn btn-success btn-lg">
-                                <i class="bi bi-whatsapp me-2"></i>Falar com Atendente
+                                <img src="{{ url_for('static', filename='img/logos/Subtract-3.png') }}" alt="WhatsApp" class="icon-logo">
+                                Falar com Atendente
                             </a>
                         </div>
                         

@@ -466,18 +466,21 @@
                 </div>
                 <div class="modal-body">
                     <form id="addLinkForm">
-                        <div class="mb-3">
-                            <label for="linkName" class="form-label">Nome do Link</label>
-                            <input type="text" class="form-control" id="linkName" name="linkName" required>
-                            <div class="form-text text-light">
-                                Exemplo: "promocao" ou "lucas/whatsapp" (máximo uma barra permitida)
-                            </div>
-                            <div class="form-text">URL completa: <span id="linkPreview"></span></div>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text">{{ request.host_url }}</span>
+                            <input type="text" class="form-control" id="linkName" name="linkName" placeholder="nome-do-link" required>
                         </div>
                         <div class="mb-3">
-                            <label for="customMessage" class="form-label">Mensagem personalizada (opcional)</label>
-                            <textarea class="form-control" id="customMessage" name="customMessage" rows="3"></textarea>
-                            <div class="form-text text-light">Mensagem enviada ao cliente quando clicar no link</div>
+                            <label for="customMessage" class="form-label">Mensagem Personalizada</label>
+                            <textarea class="form-control" id="customMessage" rows="3" placeholder="Digite a mensagem que aparecerá antes do redirecionamento">Você será redirecionado para um de nossos atendentes. Aguarde um momento...</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">URL do Link</label>
+                            <div class="input-group">
+                                <span class="input-group-text">{{ request.host_url }}</span>
+                                <span class="form-control" id="previewLink">seu-link</span>
+                            </div>
+                            <div class="form-text" style="color: #ffffff !important;">Este será o URL que você compartilhará com seus clientes.</div>
                         </div>
                     </form>
                 </div>
@@ -527,188 +530,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Validar e atualizar preview do link
-        function updateLinkPreview() {
-            const linkName = document.getElementById('linkName').value.trim();
-            const linkPreview = document.getElementById('linkPreview');
-            
-            // Começar assumindo que é válido
-            let isValid = true;
-            let message = '';
-            
-            // Verificar se está vazio
-            if (!linkName) {
-                linkPreview.textContent = 'Digite um nome para o link';
-                linkPreview.parentElement.classList.remove('text-danger', 'text-info');
-                linkPreview.parentElement.classList.add('text-muted');
-                return;
-            }
-            
-            // Verificar se tem mais de uma barra
-            const segments = linkName.split('/');
-            if (segments.length > 2) {
-                isValid = false;
-                message = 'Máximo uma barra permitida.';
-            } 
-            // Verificar se algum segmento está vazio
-            else if (segments.some(s => s === '')) {
-                isValid = false;
-                message = 'O nome do link não pode começar ou terminar com barra, ou ter barras consecutivas.';
-            }
-            // Verificar se contém caracteres especiais (exceto barras, que já foram validadas)
-            else if (/[^a-zA-Z0-9\-\/]/.test(linkName)) {
-                isValid = false;
-                message = 'Apenas letras, números, hífen e barra são permitidos.';
-            }
-            // Verificar rotas reservadas
-            else {
-                const reservedRoutes = ['api', 'login', 'logout', 'admin', 'dashboard', 'administracao', 'static', 'redirect'];
-                for (const segment of segments) {
-                    if (reservedRoutes.includes(segment)) {
-                        isValid = false;
-                        message = `"${segment}" é uma palavra reservada.`;
-                        break;
-                    }
-                }
-            }
-            
-            // Atualizar o preview com base na validação
-            if (isValid) {
-                linkPreview.textContent = `${window.location.protocol}//${window.location.host}/${linkName}`;
-                linkPreview.parentElement.classList.remove('text-danger', 'text-muted');
-                linkPreview.parentElement.classList.add('text-info');
-            } else {
-                linkPreview.textContent = message;
-                linkPreview.parentElement.classList.remove('text-info', 'text-muted');
-                linkPreview.parentElement.classList.add('text-danger');
-            }
-        }
-        
-        // Adicionar evento para atualizar preview
-        document.addEventListener('DOMContentLoaded', function() {
-            const linkNameInput = document.getElementById('linkName');
-            const saveButton = document.getElementById('saveLink');
-            
-            if (linkNameInput) {
-                linkNameInput.addEventListener('input', updateLinkPreview);
-                // Inicializar preview
-                updateLinkPreview();
-                
-                // Ativar o envio do formulário com Enter
-                linkNameInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter' && saveButton) {
-                        e.preventDefault();
-                        saveButton.click();
-                    }
-                });
-            }
-            
-            // Implementar a função para salvar o link
-            if (saveButton) {
-                saveButton.addEventListener('click', function() {
-                    const linkName = document.getElementById('linkName').value.trim();
-                    const customMessage = document.getElementById('customMessage').value.trim();
-                    
-                    if (!linkName) {
-                        alert('Por favor, digite um nome para o link');
-                        return;
-                    }
-                    
-                    // Fazer a mesma validação que está na função updateLinkPreview
-                    let isValid = true;
-                    let errorMessage = '';
-                    
-                    // Verificar se tem mais de uma barra
-                    const segments = linkName.split('/');
-                    if (segments.length > 2) {
-                        isValid = false;
-                        errorMessage = 'Máximo uma barra permitida.';
-                    } 
-                    // Verificar se algum segmento está vazio
-                    else if (segments.some(s => s === '')) {
-                        isValid = false;
-                        errorMessage = 'O nome do link não pode começar ou terminar com barra, ou ter barras consecutivas.';
-                    }
-                    // Verificar se contém caracteres especiais (exceto barras, que já foram validadas)
-                    else if (/[^a-zA-Z0-9\-\/]/.test(linkName)) {
-                        isValid = false;
-                        errorMessage = 'Apenas letras, números, hífen e barra são permitidos.';
-                    }
-                    // Verificar rotas reservadas
-                    else {
-                        const reservedRoutes = ['api', 'login', 'logout', 'admin', 'dashboard', 'administracao', 'static', 'redirect'];
-                        for (const segment of segments) {
-                            if (reservedRoutes.includes(segment)) {
-                                isValid = false;
-                                errorMessage = `"${segment}" é uma palavra reservada.`;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if (!isValid) {
-                        alert('Nome de link inválido: ' + errorMessage);
-                        return;
-                    }
-                    
-                    // Enviar solicitação para adicionar link
-                    fetch(window.location.origin + '/api/links', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            link_name: linkName,
-                            custom_message: customMessage
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Fechar modal
-                            const modal = bootstrap.Modal.getInstance(document.getElementById('addLinkModal'));
-                            modal.hide();
-                            
-                            // Limpar formulário
-                            document.getElementById('linkName').value = '';
-                            document.getElementById('customMessage').value = '';
-                            
-                            // Mostrar mensagem de sucesso
-                            alert(data.message || 'Link adicionado com sucesso!');
-                            
-                            // Recarregar a página para atualizar a lista
-                            window.location.reload();
-                        } else {
-                            alert(data.error || 'Erro ao adicionar link');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Erro:', error);
-                        alert('Ocorreu um erro ao adicionar o link');
-                    });
-                });
-            }
-            
-            // Botões para copiar links
-            const copyButtons = document.querySelectorAll('.copy-link');
-            if (copyButtons) {
-                copyButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const url = this.getAttribute('data-url');
-                        navigator.clipboard.writeText(url).then(
-                            function() {
-                                alert('Link copiado para a área de transferência!');
-                            },
-                            function(err) {
-                                console.error('Erro ao copiar link: ', err);
-                                alert('Não foi possível copiar o link. Tente novamente.');
-                            }
-                        );
-                    });
-                });
-            }
-        });
-    </script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html> 

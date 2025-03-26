@@ -6,7 +6,6 @@ from flask import Flask, render_template, request, redirect, jsonify, url_for, s
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests  # Para chamadas API externas
-import re
 
 # Configuração do Flask
 app = Flask(__name__)
@@ -297,56 +296,46 @@ def dashboard():
 @login_required
 def manage_numbers():
     user_id = session.get('user_id')
-    try:
-        with get_db_connection() as conn:
-            if request.method == 'POST':
-                # Verificar se os dados são JSON ou formulário
-                if request.is_json:
-                    data = request.json
-                    phone = data.get('phone_number')
-                    description = data.get('description')
-                else:
-                    phone = request.form.get('phone')
-                    description = request.form.get('description')
-                    
-                # Validar dados
-                if not phone:
-                    return jsonify({'success': False, 'error': 'Número de telefone é obrigatório'}), 400
+    with get_db_connection() as conn:
+        if request.method == 'POST':
+            # Verificar se os dados são JSON ou formulário
+            if request.is_json:
+                data = request.json
+                phone = data.get('phone_number')
+                description = data.get('description')
+            else:
+                phone = request.form.get('phone')
+                description = request.form.get('description')
                 
-                # Validar formato do número
-                is_valid, formatted_number = validate_phone_number(phone)
-                if not is_valid:
-                    return jsonify({'success': False, 'error': 'Formato de número inválido. Use apenas dígitos e inclua o código do país.'}), 400
-                
-                # Verificar se o número já existe para este usuário
-                existing = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ? AND phone_number = ?', 
-                                     (user_id, formatted_number)).fetchone()
-                if existing:
-                    # Se já existir mas estiver inativo, reativá-lo
-                    if existing['is_active'] == 0:
-                        conn.execute('UPDATE whatsapp_numbers SET is_active = 1, description = ? WHERE id = ?', 
-                                  (description or existing['description'], existing['id']))
-                        conn.commit()  # Commit explícito para a reativação
-                        return jsonify({'success': True, 'message': 'Número reativado com sucesso'})
-                    return jsonify({'success': False, 'error': 'Este número já está cadastrado para o seu usuário'}), 400
-                    
-                # Adicionar novo número
-                try:
-                    conn.execute('INSERT INTO whatsapp_numbers (user_id, phone_number, description, is_active) VALUES (?, ?, ?, 1)', 
-                               (user_id, formatted_number, description))
-                    conn.commit()  # Commit explícito para a inserção
-                    # Retornar JSON em vez de redirecionamento
-                    return jsonify({'success': True, 'message': 'Número adicionado com sucesso'})
-                except Exception as e:
-                    print(f"Erro ao adicionar número: {str(e)}")
-                    return jsonify({'success': False, 'error': f'Erro ao adicionar número: {str(e)}'}), 500
+            # Validar dados
+            if not phone:
+                return jsonify({'success': False, 'error': 'Número de telefone é obrigatório'}), 400
             
-            # Se for GET, retornar todos os números ativos
-            numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ? AND is_active = 1', (user_id,)).fetchall()
-            return jsonify([dict(number) for number in numbers])
-    except Exception as e:
-        print(f"Erro em manage_numbers: {str(e)}")
-        return jsonify({'success': False, 'error': f'Erro ao processar sua solicitação: {str(e)}'}), 500
+            # Validar formato do número
+            is_valid, formatted_number = validate_phone_number(phone)
+            if not is_valid:
+                return jsonify({'success': False, 'error': 'Formato de número inválido. Use apenas dígitos e inclua o código do país.'}), 400
+            
+            # Verificar se o número já existe para este usuário
+            existing = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ? AND phone_number = ?', 
+                                 (user_id, formatted_number)).fetchone()
+            if existing:
+                # Se já existir mas estiver inativo, reativá-lo
+                if existing['is_active'] == 0:
+                    conn.execute('UPDATE whatsapp_numbers SET is_active = 1, description = ? WHERE id = ?', 
+                              (description or existing['description'], existing['id']))
+                    return jsonify({'success': True, 'message': 'Número reativado com sucesso'})
+                return jsonify({'success': False, 'error': 'Este número já está cadastrado para o seu usuário'}), 400
+                
+            # Adicionar novo número
+            conn.execute('INSERT INTO whatsapp_numbers (user_id, phone_number, description, is_active) VALUES (?, ?, ?, 1)', 
+                       (user_id, formatted_number, description))
+            # Retornar JSON em vez de redirecionamento
+            return jsonify({'success': True, 'message': 'Número adicionado com sucesso'})
+        
+        # Se for GET, retornar todos os números ativos
+        numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ? AND is_active = 1', (user_id,)).fetchall()
+        return jsonify([dict(number) for number in numbers])
 
 # Função para validar número de telefone
 def validate_phone_number(phone):
@@ -376,18 +365,9 @@ def delete_number(number_id):
                 return jsonify({'success': False, 'error': 'Número não encontrado ou sem permissão'}), 403
             
             if request.method == 'DELETE':
-                # Verificar se existem redirecionamentos para este número
-                redirect_logs = conn.execute('SELECT COUNT(*) as count FROM redirect_logs WHERE number_id = ?', 
-                                         (number_id,)).fetchone()
-                
-                # Se existirem logs, remover a referência ao número
-                if redirect_logs and redirect_logs['count'] > 0:
-                    conn.execute('UPDATE redirect_logs SET number_id = NULL WHERE number_id = ?', (number_id,))
-                
-                # Remover o número
+                # Remover o número ao invés de apenas desativá-lo
                 conn.execute('DELETE FROM whatsapp_numbers WHERE id = ?', (number_id,))
                 conn.commit()
-                
                 return jsonify({'success': True, 'message': 'Número excluído com sucesso'})
             
             elif request.method == 'PUT':
@@ -411,7 +391,6 @@ def delete_number(number_id):
                     if update_fields:
                         params.append(number_id)
                         conn.execute(f'UPDATE whatsapp_numbers SET {", ".join(update_fields)} WHERE id = ?', params)
-                        conn.commit()
                         return jsonify({'success': True, 'message': 'Número atualizado com sucesso'})
                     
                     return jsonify({'success': False, 'error': 'Nenhum campo para atualizar'}), 400
@@ -420,74 +399,41 @@ def delete_number(number_id):
             
     except Exception as e:
         print(f"Erro ao gerenciar número: {str(e)}")
-        return jsonify({'success': False, 'error': f'Ocorreu um erro ao processar sua solicitação: {str(e)}'}), 500
+        return jsonify({'success': False, 'error': 'Ocorreu um erro ao processar sua solicitação'}), 500
 
 # API para gerenciar links personalizados
 @app.route('/api/links', methods=['GET', 'POST'])
 @login_required
 def manage_links():
     user_id = session.get('user_id')
-    try:
-        with get_db_connection() as conn:
-            if request.method == 'POST':
-                # Verificar se os dados são JSON ou formulário
-                if request.is_json:
-                    data = request.json
-                    link_name = data.get('link_name')
-                    custom_message = data.get('custom_message')
-                else:
-                    link_name = request.form.get('link_name')
-                    custom_message = request.form.get('custom_message')
-                
-                # Validar dados
-                if not link_name:
-                    return jsonify({'success': False, 'error': 'Nome do link é obrigatório'}), 400
-                
-                # Verificar caracteres permitidos e formato
-                if not is_valid_link_name(link_name):
-                    return jsonify({'success': False, 'error': 'Nome do link contém caracteres inválidos ou formato incorreto'}), 400
-                
-                # Verificar se o link já existe para este usuário
-                existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ?', 
-                                      (link_name, user_id)).fetchone()
-                if existing:
-                    return jsonify({'success': False, 'error': 'Este link já existe para o seu usuário'}), 400
-                
-                # Adicionar novo link
-                conn.execute('INSERT INTO custom_links (user_id, link_name, custom_message) VALUES (?, ?, ?)', 
-                           (user_id, link_name, custom_message))
-                conn.commit()  # Commit explícito para garantir que a inserção seja salva
-                
-                return jsonify({'success': True, 'message': 'Link adicionado com sucesso'})
+    with get_db_connection() as conn:
+        if request.method == 'POST':
+            # Verificar se os dados são JSON ou formulário
+            if request.is_json:
+                data = request.json
+                link_name = data.get('link_name')
+                custom_message = data.get('custom_message')
+            else:
+                link_name = request.form.get('link_name')
+                custom_message = request.form.get('custom_message')
             
-            # Se for GET, retornar todos os links
-            links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
-            return jsonify([dict(link) for link in links])
-    except Exception as e:
-        print(f"Erro ao gerenciar links: {str(e)}")
-        return jsonify({'success': False, 'error': f'Erro ao processar sua solicitação: {str(e)}'}), 500
-
-def is_valid_link_name(link_name):
-    # Verificar caracteres permitidos (letras, números, hífen e barra)
-    if re.search(r'[^a-zA-Z0-9\-\/]', link_name):
-        return False
-    
-    # Verificar se tem mais de uma barra
-    segments = link_name.split('/')
-    if len(segments) > 2:
-        return False
-    
-    # Verificar se algum segmento está vazio
-    if '' in segments:
-        return False
-    
-    # Verificar rotas reservadas
-    reserved_routes = ['api', 'login', 'logout', 'admin', 'dashboard', 'administracao', 'static', 'redirect']
-    for segment in segments:
-        if segment in reserved_routes:
-            return False
-    
-    return True
+            # Validar dados
+            if not link_name:
+                return jsonify({'success': False, 'error': 'Nome do link é obrigatório'}), 400
+            
+            # Verificar se o link já existe para este usuário
+            existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ?', 
+                                  (link_name, user_id)).fetchone()
+            if existing:
+                return jsonify({'success': False, 'error': 'Este link já existe para o seu usuário'}), 400
+            
+            conn.execute('INSERT INTO custom_links (user_id, link_name, custom_message) VALUES (?, ?, ?)', 
+                       (user_id, link_name, custom_message))
+            return jsonify({'success': True, 'message': 'Link adicionado com sucesso'})
+        
+        # Se for GET, retornar todos os links
+        links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
+        return jsonify([dict(link) for link in links])
 
 @app.route('/api/links/<int:link_id>', methods=['DELETE'])
 @login_required
@@ -504,71 +450,43 @@ def delete_link(link_id):
         if link['link_name'] == 'padrao':
             return jsonify({'success': False, 'error': 'Não é possível excluir o link padrão'}), 400
         
-        try:
-            # Verificar se existem redirecionamentos para este link
-            redirect_logs = conn.execute('SELECT COUNT(*) as count FROM redirect_logs WHERE link_id = ?', 
-                                      (link_id,)).fetchone()
-            
-            # Se existirem logs, remover a referência ao link
-            if redirect_logs and redirect_logs['count'] > 0:
-                conn.execute('UPDATE redirect_logs SET link_id = NULL WHERE link_id = ?', (link_id,))
-            
-            # Excluir o link
-            conn.execute('DELETE FROM custom_links WHERE id = ?', (link_id,))
-            conn.commit()
-            
-            return jsonify({'success': True, 'message': 'Link excluído com sucesso'})
-        except Exception as e:
-            print(f"Erro ao excluir link: {str(e)}")
-            return jsonify({'success': False, 'error': f'Erro ao excluir link: {str(e)}'}), 500
+        conn.execute('DELETE FROM custom_links WHERE id = ?', (link_id,))
+        return jsonify({'success': True})
 
 @app.route('/api/links/<int:link_id>', methods=['PUT'])
 @login_required
 def update_link(link_id):
     user_id = session.get('user_id')
-    try:
-        data = request.json
+    data = request.json
+    
+    with get_db_connection() as conn:
+        # Verificar se o link pertence ao usuário atual
+        link = conn.execute('SELECT * FROM custom_links WHERE id = ? AND user_id = ?', 
+                         (link_id, user_id)).fetchone()
+        if not link:
+            return jsonify({'success': False, 'error': 'Link não encontrado ou sem permissão'}), 403
         
-        with get_db_connection() as conn:
-            # Verificar se o link pertence ao usuário atual
-            link = conn.execute('SELECT * FROM custom_links WHERE id = ? AND user_id = ?', 
-                             (link_id, user_id)).fetchone()
-            if not link:
-                return jsonify({'success': False, 'error': 'Link não encontrado ou sem permissão'}), 403
-            
-            # Se estiver tentando atualizar o nome do link, verificar se o novo nome já existe
-            if 'link_name' in data and data['link_name'] != link['link_name']:
-                # Verificar caracteres permitidos e formato
-                if not is_valid_link_name(data['link_name']):
-                    return jsonify({'success': False, 'error': 'Nome do link contém caracteres inválidos ou formato incorreto'}), 400
-                    
-                existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ? AND id != ?', 
-                                     (data['link_name'], user_id, link_id)).fetchone()
-                if existing:
-                    return jsonify({'success': False, 'error': 'Este nome de link já está em uso'}), 400
-            
-            # Atualizar o link
-            try:
-                if 'link_name' in data:
-                    conn.execute('UPDATE custom_links SET link_name = ? WHERE id = ?', 
-                              (data['link_name'], link_id))
-                
-                if 'custom_message' in data:
-                    conn.execute('UPDATE custom_links SET custom_message = ? WHERE id = ?', 
-                              (data['custom_message'], link_id))
-                
-                if 'is_active' in data:
-                    conn.execute('UPDATE custom_links SET is_active = ? WHERE id = ?', 
-                              (1 if data['is_active'] else 0, link_id))
-                
-                conn.commit()  # Commit explícito para garantir que as alterações sejam salvas
-                return jsonify({'success': True, 'message': 'Link atualizado com sucesso'})
-            except Exception as e:
-                print(f"Erro ao atualizar link: {str(e)}")
-                return jsonify({'success': False, 'error': f'Erro ao atualizar link: {str(e)}'}), 500
-    except Exception as e:
-        print(f"Erro em update_link: {str(e)}")
-        return jsonify({'success': False, 'error': 'Erro ao processar sua solicitação. Verifique o formato dos dados.'}), 400
+        # Se estiver tentando atualizar o nome do link, verificar se o novo nome já existe
+        if 'link_name' in data and data['link_name'] != link['link_name']:
+            existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ? AND id != ?', 
+                                 (data['link_name'], user_id, link_id)).fetchone()
+            if existing:
+                return jsonify({'success': False, 'error': 'Este nome de link já está em uso'}), 400
+        
+        # Atualizar o link
+        if 'link_name' in data:
+            conn.execute('UPDATE custom_links SET link_name = ? WHERE id = ?', 
+                      (data['link_name'], link_id))
+        
+        if 'custom_message' in data:
+            conn.execute('UPDATE custom_links SET custom_message = ? WHERE id = ?', 
+                      (data['custom_message'], link_id))
+        
+        if 'is_active' in data:
+            conn.execute('UPDATE custom_links SET is_active = ? WHERE id = ?', 
+                      (1 if data['is_active'] else 0, link_id))
+        
+        return jsonify({'success': True})
 
 # Lista de rotas reservadas que não podem ser usadas como link_name
 reserved_routes = [
@@ -577,20 +495,16 @@ reserved_routes = [
 ]
 
 # Rota para redirecionamento direto ao WhatsApp (mantém o prefixo redirect por compatibilidade)
-@app.route('/redirect/<path:link_name>')
+@app.route('/redirect/<link_name>')
 def redirect_whatsapp_with_prefix(link_name):
     return redirect_whatsapp_func(link_name)
 
 # Nova rota simplificada, sem o prefixo "redirect"
-@app.route('/<path:link_name>')
+@app.route('/<link_name>')
 def redirect_whatsapp(link_name):
-    # Se o link contiver barras, verificamos apenas o primeiro segmento
-    first_segment = link_name.split('/')[0] if '/' in link_name else link_name
-    
-    # Verificar se o primeiro segmento não é uma rota reservada
-    if first_segment in reserved_routes:
+    # Verificar se o link_name não é uma rota reservada
+    if link_name in reserved_routes:
         abort(404)  # Retorna 404 Not Found para evitar conflito com rotas existentes
-    
     return redirect_whatsapp_func(link_name)
 
 # Função que contém a lógica de redirecionamento

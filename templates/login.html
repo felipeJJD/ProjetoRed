@@ -28,16 +28,6 @@
             background: linear-gradient(to right, #25d366, #128C7E);
             border-bottom: none;
         }
-        .logo-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        .logo-header img {
-            height: 35px;
-            width: auto;
-        }
         .card-body {
             background-color: #1e1e1e;
         }
@@ -88,10 +78,7 @@
     <div class="container login-container">
         <div class="card">
             <div class="card-header text-white text-center">
-                <div class="logo-header">
-                    <img src="{{ url_for('static', filename='img/logos/Subtract-3.png') }}" alt="REDIZAP Logo">
-                    <h2 class="h4 mb-0">Área Administrativa</h2>
-                </div>
+                <h2 class="h4 mb-0">Área Administrativa</h2>
             </div>
             <div class="card-body p-4">
                 {% if error %}

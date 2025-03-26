@@ -32,48 +32,9 @@ function showToast(message, type = 'success') {
     });
 }
 
-// Função para obter URL base
+// Obter URL base do servidor
 function getBaseUrl() {
     return window.location.protocol + '//' + window.location.host;
-}
-
-// Função para detectar se é uma URL válida
-function isValidUrl(string) {
-    try {
-        new URL(string);
-        return true;
-    } catch (_) {
-        return false;
-    }
-}
-
-// Função para validar o nome do link
-function isValidLinkName(linkName) {
-    if (!linkName) return false;
-    
-    // Verificar se tem mais de uma barra
-    const segments = linkName.split('/');
-    if (segments.length > 2) {
-        return false;
-    }
-    
-    // Verificar se algum segmento está vazio
-    if (segments.some(s => s === '')) {
-        return false;
-    }
-    
-    // Verificar caracteres permitidos (letras, números, hífen e barra)
-    if (/[^a-zA-Z0-9\-\/]/.test(linkName)) {
-        return false;
-    }
-    
-    // Verificar palavras reservadas
-    const reservedRoutes = ['api', 'login', 'logout', 'admin', 'dashboard', 'administracao', 'static', 'redirect'];
-    if (segments.some(s => reservedRoutes.includes(s))) {
-        return false;
-    }
-    
-    return true;
 }
 
 // DOM carregado
@@ -87,18 +48,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const updateLinkBtn = document.getElementById('updateLink');
     const linksList = document.getElementById('linksList');
     const linkNameInput = document.getElementById('linkName');
+    const previewLink = document.getElementById('previewLink');
     const editLinkNameInput = document.getElementById('editLinkName');
+    const editPreviewLink = document.getElementById('editPreviewLink');
     
-    // Atualizar preview apenas para o modal de edição
+    // Função para atualizar a visualização prévia do link
+    function updateLinkPreview() {
+        const baseUrl = getBaseUrl() + '/';
+        const linkName = this.value || 'seu-link';
+        if (this.id === 'linkName') {
+            previewLink.textContent = baseUrl + linkName;
+        } else {
+            editPreviewLink.textContent = baseUrl + linkName;
+        }
+    }
+    
+    // Adicionar listener para visualização prévia do link
+    if (linkNameInput) {
+        linkNameInput.addEventListener('input', updateLinkPreview);
+    }
+    
     if (editLinkNameInput) {
-        editLinkNameInput.addEventListener('input', function() {
-            const baseUrl = getBaseUrl() + '/';
-            const linkName = this.value || 'seu-link';
-            const editPreviewLink = document.getElementById('editPreviewLink');
-            if (editPreviewLink) {
-                editPreviewLink.textContent = baseUrl + linkName;
-            }
-        });
+        editLinkNameInput.addEventListener('input', updateLinkPreview);
     }
 
     // Adicionar novo número
@@ -164,19 +135,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const numberId = button.dataset.id;
                 
                 if (confirm('Tem certeza que deseja excluir este número?')) {
-                    // Mostrar mensagem de carregamento
-                    showToast('Excluindo número...', 'info');
-                    
                     // Enviar solicitação para excluir número
                     fetch(`${getBaseUrl()}/api/numbers/${numberId}`, {
                         method: 'DELETE',
                     })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`Erro HTTP: ${response.status}`);
-                        }
-                        return response.json();
-                    })
+                    .then(response => response.json())
                     .then(data => {
                         if (data.success) {
                             // Remover linha da tabela
@@ -184,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             row.remove();
                             
                             // Mostrar mensagem de sucesso
-                            showToast(data.message || 'Número excluído com sucesso!');
+                            showToast(data.message);
                             
                             // Se não houver mais números, adicionar mensagem
                             if (numbersList.querySelectorAll('tr').length === 0) {
@@ -193,12 +156,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 numbersList.appendChild(emptyRow);
                             }
                         } else {
-                            showToast(data.error || 'Erro ao excluir número', 'danger');
+                            showToast(data.message, 'danger');
                         }
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        showToast('Erro ao excluir número: ' + error.message, 'danger');
+                        showToast('Ocorreu um erro ao excluir o número', 'danger');
                     });
                 }
             }
@@ -216,9 +179,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Validação do formato do link usando a função isValidLinkName
-            if (!isValidLinkName(linkName)) {
-                showToast('Nome de link inválido. Use apenas letras, números, hífens e no máximo uma barra. Evite palavras reservadas.', 'danger');
+            // Validação do formato do link (apenas letras, números e hífens)
+            if (!/^[a-zA-Z0-9-]+$/.test(linkName)) {
+                showToast('O nome do link deve conter apenas letras, números e hífens', 'danger');
                 return;
             }
             
@@ -242,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Limpar formulário
                     document.getElementById('linkName').value = '';
-                    document.getElementById('customMessage').value = '';
+                    document.getElementById('customMessage').value = 'Você será redirecionado para um de nossos atendentes. Aguarde um momento...';
                     
                     // Mostrar mensagem de sucesso
                     showToast(data.message);
@@ -250,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Recarregar a página para atualizar a lista
                     window.location.reload();
                 } else {
-                    showToast(data.error || 'Erro ao adicionar link', 'danger');
+                    showToast(data.message, 'danger');
                 }
             })
             .catch(error => {
@@ -305,19 +268,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const linkId = button.dataset.id;
                 
                 if (confirm('Tem certeza que deseja excluir este link?')) {
-                    // Mostrar mensagem de carregamento
-                    showToast('Excluindo link...', 'info');
-                    
                     // Enviar solicitação para excluir link
                     fetch(`${getBaseUrl()}/api/links/${linkId}`, {
                         method: 'DELETE',
                     })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`Erro HTTP: ${response.status}`);
-                        }
-                        return response.json();
-                    })
+                    .then(response => response.json())
                     .then(data => {
                         if (data.success) {
                             // Remover linha da tabela
@@ -325,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             row.remove();
                             
                             // Mostrar mensagem de sucesso
-                            showToast(data.message || 'Link excluído com sucesso!');
+                            showToast(data.message);
                             
                             // Se não houver mais links, adicionar mensagem
                             if (linksList.querySelectorAll('tr').length === 0) {
@@ -334,12 +289,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 linksList.appendChild(emptyRow);
                             }
                         } else {
-                            showToast(data.error || 'Erro ao excluir link', 'danger');
+                            showToast(data.message, 'danger');
                         }
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        showToast('Erro ao excluir link: ' + error.message, 'danger');
+                        showToast('Ocorreu um erro ao excluir o link', 'danger');
                     });
                 }
             }
@@ -358,9 +313,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Validação do formato do link usando a função isValidLinkName
-            if (!isValidLinkName(linkName)) {
-                showToast('Nome de link inválido. Use apenas letras, números, hífens e no máximo uma barra. Evite palavras reservadas.', 'danger');
+            // Validação do formato do link (apenas letras, números e hífens)
+            if (!/^[a-zA-Z0-9-]+$/.test(linkName)) {
+                showToast('O nome do link deve conter apenas letras, números e hífens', 'danger');
                 return;
             }
             
@@ -383,12 +338,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     modal.hide();
                     
                     // Mostrar mensagem de sucesso
-                    showToast(data.message || 'Link atualizado com sucesso');
+                    showToast(data.message);
                     
                     // Recarregar a página para atualizar a lista
                     window.location.reload();
                 } else {
-                    showToast(data.error || 'Erro ao atualizar link', 'danger');
+                    showToast(data.message, 'danger');
                 }
             })
             .catch(error => {

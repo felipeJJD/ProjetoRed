@@ -366,9 +366,18 @@ def delete_number(number_id):
                 return jsonify({'success': False, 'error': 'Número não encontrado ou sem permissão'}), 403
             
             if request.method == 'DELETE':
-                # Remover o número ao invés de apenas desativá-lo
+                # Verificar se existem redirecionamentos para este número
+                redirect_logs = conn.execute('SELECT COUNT(*) as count FROM redirect_logs WHERE number_id = ?', 
+                                         (number_id,)).fetchone()
+                
+                # Se existirem logs, remover a referência ao número
+                if redirect_logs and redirect_logs['count'] > 0:
+                    conn.execute('UPDATE redirect_logs SET number_id = NULL WHERE number_id = ?', (number_id,))
+                
+                # Remover o número
                 conn.execute('DELETE FROM whatsapp_numbers WHERE id = ?', (number_id,))
                 conn.commit()
+                
                 return jsonify({'success': True, 'message': 'Número excluído com sucesso'})
             
             elif request.method == 'PUT':
@@ -392,6 +401,7 @@ def delete_number(number_id):
                     if update_fields:
                         params.append(number_id)
                         conn.execute(f'UPDATE whatsapp_numbers SET {", ".join(update_fields)} WHERE id = ?', params)
+                        conn.commit()
                         return jsonify({'success': True, 'message': 'Número atualizado com sucesso'})
                     
                     return jsonify({'success': False, 'error': 'Nenhum campo para atualizar'}), 400
@@ -400,7 +410,7 @@ def delete_number(number_id):
             
     except Exception as e:
         print(f"Erro ao gerenciar número: {str(e)}")
-        return jsonify({'success': False, 'error': 'Ocorreu um erro ao processar sua solicitação'}), 500
+        return jsonify({'success': False, 'error': f'Ocorreu um erro ao processar sua solicitação: {str(e)}'}), 500
 
 # API para gerenciar links personalizados
 @app.route('/api/links', methods=['GET', 'POST'])
@@ -477,8 +487,23 @@ def delete_link(link_id):
         if link['link_name'] == 'padrao':
             return jsonify({'success': False, 'error': 'Não é possível excluir o link padrão'}), 400
         
-        conn.execute('DELETE FROM custom_links WHERE id = ?', (link_id,))
-        return jsonify({'success': True})
+        try:
+            # Verificar se existem redirecionamentos para este link
+            redirect_logs = conn.execute('SELECT COUNT(*) as count FROM redirect_logs WHERE link_id = ?', 
+                                      (link_id,)).fetchone()
+            
+            # Se existirem logs, remover a referência ao link
+            if redirect_logs and redirect_logs['count'] > 0:
+                conn.execute('UPDATE redirect_logs SET link_id = NULL WHERE link_id = ?', (link_id,))
+            
+            # Excluir o link
+            conn.execute('DELETE FROM custom_links WHERE id = ?', (link_id,))
+            conn.commit()
+            
+            return jsonify({'success': True, 'message': 'Link excluído com sucesso'})
+        except Exception as e:
+            print(f"Erro ao excluir link: {str(e)}")
+            return jsonify({'success': False, 'error': f'Erro ao excluir link: {str(e)}'}), 500
 
 @app.route('/api/links/<int:link_id>', methods=['PUT'])
 @login_required

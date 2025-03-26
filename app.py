@@ -1270,13 +1270,13 @@ def validate_data_consistency(conn, user_id, link_id, start_date, end_date):
 def get_location_from_ip(ip_address):
     """
     Obtém dados de localização geográfica a partir de um endereço IP
-    usando a API gratuita ipapi.co
+    usando a API gratuita ip-api.com que oferece melhor precisão
     
     Args:
         ip_address: Endereço IP para consulta
         
     Returns:
-        Um dicionário com dados de localização ou None em caso de erro
+        Um dicionário com dados de localização ou fallback para localização padrão
     """
     # Verificar se o IP é local/privado e usar endereço padrão nesse caso
     local_ips = ['127.0.0.1', 'localhost', '::1', '0.0.0.0']
@@ -1289,11 +1289,40 @@ def get_location_from_ip(ip_address):
     # Checar se é IP local ou privado
     if ip_address in local_ips or any(ip_address.startswith(prefix) for prefix in private_ranges):
         print(f"IP {ip_address} é local/privado. Usando IP padrão para geolocalização.")
-        # Se for IP local/desenvolvimento, usar um IP público para demonstração
-        ip_address = '8.8.8.8'  # IP do Google DNS como exemplo
+        # Se for IP local/desenvolvimento, retornar localidade padrão
+        return {
+            'city': 'Curitiba',
+            'latitude': -25.4372,
+            'longitude': -49.2699,
+            'country': 'Brasil',
+            'region': 'Paraná'
+        }
     
     try:
-        response = requests.get(f'https://ipapi.co/{ip_address}/json/')
+        # Usar ip-api.com em vez de ipapi.co para melhor precisão com IPs brasileiros
+        response = requests.get(f'http://ip-api.com/json/{ip_address}?fields=status,country,regionName,city,lat,lon', timeout=3)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == 'success':
+                return {
+                    'city': data.get('city', 'Desconhecido'),
+                    'latitude': data.get('lat', 0),
+                    'longitude': data.get('lon', 0),
+                    'country': data.get('country', 'Desconhecido'),
+                    'region': data.get('regionName', 'Desconhecido')
+                }
+            else:
+                print(f"Erro na API de geolocalização para IP {ip_address}: {data}")
+        else:
+            print(f"Falha na API de geolocalização. Status: {response.status_code}")
+            
+    except Exception as e:
+        print(f"Erro ao obter localização do IP {ip_address}: {str(e)}")
+    
+    # Segunda tentativa com outra API caso a primeira falhe
+    try:
+        response = requests.get(f'https://ipapi.co/{ip_address}/json/', timeout=3)
         if response.status_code == 200:
             data = response.json()
             if 'error' not in data:
@@ -1304,20 +1333,17 @@ def get_location_from_ip(ip_address):
                     'country': data.get('country_name', 'Desconhecido'),
                     'region': data.get('region', 'Desconhecido')
                 }
-            else:
-                print(f"Erro na API de geolocalização: {data.get('error')}")
-        else:
-            print(f"Falha na API de geolocalização. Status: {response.status_code}")
-    except Exception as e:
-        print(f"Erro ao obter localização do IP {ip_address}: {str(e)}")
-    
+    except:
+        # Ignorar erro na segunda tentativa, já usaremos o fallback
+        pass
+        
     # Fallback para localização padrão em caso de erro
     return {
-        'city': 'São Paulo',
-        'latitude': -23.5505,
-        'longitude': -46.6333,
+        'city': 'Curitiba',
+        'latitude': -25.4372,
+        'longitude': -49.2699,
         'country': 'Brasil',
-        'region': 'São Paulo'
+        'region': 'Paraná'
     }
 
 # API para obter dados geográficos para o mapa de cliques

@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, jsonify, url_for, session, send_from_directory
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
+import requests  # Para chamadas API externas
 
 # Configuração do Flask
 app = Flask(__name__)
@@ -491,7 +492,25 @@ def update_link(link_id):
 @app.route('/redirect/<link_name>')
 def redirect_whatsapp(link_name):
     redirect_start_time = datetime.now()
-    client_ip = request.remote_addr
+    
+    # Melhorar a captura do IP para considerar proxies
+    if request.headers.get('X-Forwarded-For'):
+        # Se estiver atrás de um proxy, usar o primeiro IP na cadeia
+        client_ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    elif request.headers.get('X-Real-IP'):
+        # Alguns servidores usam X-Real-IP
+        client_ip = request.headers.get('X-Real-IP')
+    else:
+        # Caso padrão, usar o remote_addr
+        client_ip = request.remote_addr
+    
+    # Verificar se temos um IP válido
+    if not client_ip or client_ip == '':
+        client_ip = '0.0.0.0'  # IP padrão quando não conseguimos detectar
+    
+    # Logar o IP capturado para debug
+    print(f"IP capturado para redirecionamento: {client_ip}")
+    
     user_agent = request.headers.get('User-Agent', '')
     
     try:
@@ -550,6 +569,7 @@ def redirect_whatsapp(link_name):
             return redirect(whatsapp_url)
     except Exception as e:
         # Retornar uma página de erro genérica
+        print(f"Erro no redirecionamento: {str(e)}")
         redirect_time = (datetime.now() - redirect_start_time).total_seconds()
         return render_template('index.html', error='Ocorreu um erro ao processar seu redirecionamento. Tente novamente.')
 
@@ -1210,6 +1230,60 @@ def validate_data_consistency(conn, user_id, link_id, start_date, end_date):
     else:
         print("✅ Dados consistentes entre todas as consultas")
 
+# Função para obter localização a partir do IP
+def get_location_from_ip(ip_address):
+    """
+    Obtém dados de localização geográfica a partir de um endereço IP
+    usando a API gratuita ipapi.co
+    
+    Args:
+        ip_address: Endereço IP para consulta
+        
+    Returns:
+        Um dicionário com dados de localização ou None em caso de erro
+    """
+    # Verificar se o IP é local/privado e usar endereço padrão nesse caso
+    local_ips = ['127.0.0.1', 'localhost', '::1', '0.0.0.0']
+    private_ranges = [
+        '10.', '192.168.', '172.16.', '172.17.', '172.18.', '172.19.',
+        '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.',
+        '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.'
+    ]
+    
+    # Checar se é IP local ou privado
+    if ip_address in local_ips or any(ip_address.startswith(prefix) for prefix in private_ranges):
+        print(f"IP {ip_address} é local/privado. Usando IP padrão para geolocalização.")
+        # Se for IP local/desenvolvimento, usar um IP público para demonstração
+        ip_address = '8.8.8.8'  # IP do Google DNS como exemplo
+    
+    try:
+        response = requests.get(f'https://ipapi.co/{ip_address}/json/')
+        if response.status_code == 200:
+            data = response.json()
+            if 'error' not in data:
+                return {
+                    'city': data.get('city', 'Desconhecido'),
+                    'latitude': data.get('latitude', 0),
+                    'longitude': data.get('longitude', 0),
+                    'country': data.get('country_name', 'Desconhecido'),
+                    'region': data.get('region', 'Desconhecido')
+                }
+            else:
+                print(f"Erro na API de geolocalização: {data.get('error')}")
+        else:
+            print(f"Falha na API de geolocalização. Status: {response.status_code}")
+    except Exception as e:
+        print(f"Erro ao obter localização do IP {ip_address}: {str(e)}")
+    
+    # Fallback para localização padrão em caso de erro
+    return {
+        'city': 'São Paulo',
+        'latitude': -23.5505,
+        'longitude': -46.6333,
+        'country': 'Brasil',
+        'region': 'São Paulo'
+    }
+
 # API para obter dados geográficos para o mapa de cliques
 @app.route('/api/stats/map', methods=['GET'])
 @login_required
@@ -1226,38 +1300,64 @@ def get_map_stats():
     print(f"Parâmetros para mapa: {params}")
     
     with get_db_connection() as conn:
-        # Usamos a mesma consulta padrão para manter consistência
-        count_query = f'''
-            SELECT COUNT(*) as total
+        # Obter os redirecionamentos com IPs para o período filtrado
+        query = f'''
+            SELECT rl.ip_address, COUNT(*) as click_count
             FROM redirect_logs rl
             JOIN custom_links cl ON rl.link_id = cl.id
             WHERE {link_condition} {date_condition}
+            GROUP BY rl.ip_address
         '''
         
-        total_clicks = conn.execute(count_query, params).fetchone()['total']
+        redirects = conn.execute(query, params).fetchall()
+        total_clicks = sum(redirect['click_count'] for redirect in redirects)
         print(f"Total de cliques no mapa: {total_clicks}")
         
         # Verificar consistência de dados
         validate_data_consistency(conn, user_id, link_id, start_date, end_date)
         
         if total_clicks > 0:
-            # Em vez de espalhar aleatoriamente, vamos usar uma localização fixa
-            # para todos os cliques do mesmo usuário/link
+            # Lista para armazenar todos os locais com suas contagens
+            locations = []
             
-            # Para uma implementação de produção, você usaria um serviço de geolocalização
-            # para determinar a localização real com base no IP dos usuários
+            # Cache para evitar consultas repetidas de geolocalização para o mesmo IP
+            location_cache = {}
             
-            # Usar uma localização fixa para demonstração (Curitiba)
-            # Isso simula que todos os acessos vieram do mesmo local
-            city = {"name": "Curitiba", "lat": -25.4290, "lng": -49.2671}
+            for redirect in redirects:
+                ip = redirect['ip_address']
+                count = redirect['click_count']
+                
+                # Usar cache para evitar requisições repetidas
+                if ip not in location_cache:
+                    location_data = get_location_from_ip(ip)
+                    location_cache[ip] = location_data
+                else:
+                    location_data = location_cache[ip]
+                
+                # Criar um nome de local mais informativo
+                location_name = f"{location_data['city']}, {location_data['region']}, {location_data['country']}"
+                
+                # Verificar se já existe um local com as mesmas coordenadas
+                existing_location = next(
+                    (loc for loc in locations if 
+                     loc['lat'] == location_data['latitude'] and 
+                     loc['lng'] == location_data['longitude']),
+                    None
+                )
+                
+                if existing_location:
+                    # Somar os cliques ao local existente
+                    existing_location['count'] += count
+                else:
+                    # Adicionar novo local
+                    locations.append({
+                        'lat': location_data['latitude'],
+                        'lng': location_data['longitude'],
+                        'name': location_name,
+                        'count': count
+                    })
             
-            locations = [{
-                "lat": city["lat"],
-                "lng": city["lng"],
-                "name": city["name"],
-                "count": total_clicks  # Todos os cliques em um único lugar
-            }]
-            
+            print(f"Localizações processadas: {len(locations)}")
             return jsonify({"locations": locations})
         else:
             # Se não temos cliques para os filtros, retornar lista vazia

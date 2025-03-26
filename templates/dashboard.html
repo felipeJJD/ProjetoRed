@@ -211,6 +211,26 @@
             background: var(--secondary-color);
         }
         
+        /* Tabela de atividades recentes com scroll */
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 5px;
+            border: 1px solid #333;
+            margin-bottom: 10px;
+        }
+        
+        .table-container thead {
+            position: sticky;
+            top: 0;
+            background-color: #212529;
+            z-index: 1;
+        }
+        
+        .table-container thead th {
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
         /* Estilo para o header com logo */
         .header-logo {
             max-height: 40px;

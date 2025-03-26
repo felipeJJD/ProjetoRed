@@ -104,7 +104,7 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 link_id INTEGER NOT NULL,
                 number_id INTEGER NOT NULL,
-                redirect_time TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+                redirect_time TIMESTAMP DEFAULT (datetime('now')),
                 ip_address TEXT,
                 user_agent TEXT,
                 FOREIGN KEY (link_id) REFERENCES custom_links (id),

@@ -259,6 +259,97 @@ with app.app_context():
         print(f"Erro durante inicialização: {e}")
         print("Continuando mesmo com erro - o Railway deve ter criado as tabelas externamente")
 
+# Tratamento de erros global para APIs
+@app.errorhandler(Exception)
+def handle_error(e):
+    """
+    Manipulador global de erros para garantir que todas as exceções retornem JSON
+    em vez de HTML quando ocorrerem em endpoints da API
+    """
+    print(f"Erro capturado: {str(e)}")
+    # Verificar se a requisição é para um endpoint de API
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Ocorreu um erro interno ao processar sua solicitação. Administrador foi notificado.'
+        }), 500
+    # Para outros endpoints, deixar o Flask lidar normalmente
+    return render_template('error.html', error=str(e)), 500
+
+# Função para verificar se o banco de dados está corretamente configurado
+def verify_db_setup():
+    """
+    Verifica se as tabelas necessárias existem no banco de dados
+    e as cria se necessário (apenas para PostgreSQL)
+    """
+    try:
+        with get_db_connection() as conn:
+            cursor = get_db_cursor(conn)
+            
+            # Verificar se a tabela users existe
+            if app.config.get('USE_POSTGRES', False):
+                cursor.execute('''
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name = 'users'
+                    )
+                ''')
+                table_exists = cursor.fetchone()[0]
+            else:
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+                table_exists = cursor.fetchone() is not None
+            
+            if not table_exists:
+                print("❌ Tabela 'users' não existe! Tentando criar tabelas...")
+                
+                if app.config.get('USE_POSTGRES', False):
+                    # Para PostgreSQL, executaremos o script SQL diretamente
+                    script_path = os.path.join(os.path.dirname(__file__), 'criar_tabelas_postgres.sql')
+                    if os.path.exists(script_path):
+                        with open(script_path, 'r') as f:
+                            sql_script = f.read()
+                            cursor.execute(sql_script)
+                            conn.commit()
+                            print("✅ Tabelas criadas com sucesso a partir do script SQL.")
+                    else:
+                        print("❌ Arquivo de script SQL não encontrado!")
+                        return False
+                else:
+                    # Para SQLite, usamos a função init_db existente
+                    init_db()
+            
+            # Verificar se há usuários no sistema
+            cursor.execute("SELECT COUNT(*) FROM users")
+            user_count = cursor.fetchone()[0]
+            
+            if user_count == 0:
+                print("❌ Nenhum usuário encontrado! Inserindo usuários padrão...")
+                
+                # Inserir usuários padrão
+                cursor.execute('''
+                    INSERT INTO users (username, password, fullname)
+                    VALUES (%s, %s, %s)
+                ''', ('pedro', generate_password_hash('Vera123'), 'Pedro Administrador'))
+                
+                cursor.execute('''
+                    INSERT INTO users (username, password, fullname)
+                    VALUES (%s, %s, %s)
+                ''', ('felipe', generate_password_hash('123'), 'Felipe Administrador'))
+                
+                conn.commit()
+                print("✅ Usuários padrão criados com sucesso.")
+            
+            return True
+    except Exception as e:
+        print(f"❌ Erro ao verificar banco de dados: {e}")
+        return False
+
+# Garantir que o banco esteja configurado antes de iniciar o servidor
+with app.app_context():
+    verify_db_setup()
+
 # Função para verificar se o usuário está logado
 def login_required(f):
     @wraps(f)
@@ -835,91 +926,110 @@ def get_recent_redirects():
 @app.route('/api/stats/summary', methods=['GET'])
 @login_required
 def get_stats_summary():
-    user_id = session.get('user_id')
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    link_id = request.args.get('link_id', 'all')
-    
-    # Construir condições para filtros
-    link_condition = "cl.user_id = ?"
-    params = [user_id]
-    
-    if link_id != 'all' and link_id.isdigit():
-        link_condition += " AND cl.id = ?"
-        params.append(int(link_id))
-    
-    # Adicionar condições de data se fornecidas
-    date_condition = ""
-    date_params = []
-    if start_date:
-        date_condition += " AND date(rl.redirect_time) >= date(?)"
-        date_params.append(start_date)
-    if end_date:
-        date_condition += " AND date(rl.redirect_time) <= date(?)"
-        date_params.append(end_date)
-    
-    # Cópias dos parâmetros para diferentes consultas
-    redirect_params = params.copy() + date_params
-    
-    with get_db_connection() as conn:
-        # Total de cliques usando a tabela de redirecionamentos diretamente
-        total_clicks_query = f'''
-            SELECT COUNT(*) as total 
-            FROM redirect_logs rl
-            JOIN custom_links cl ON rl.link_id = cl.id
-            WHERE {link_condition} {date_condition}
-        '''
+    try:
+        user_id = session.get('user_id')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        link_id = request.args.get('link_id', 'all')
         
-        total_clicks = conn.execute(total_clicks_query, params + date_params).fetchone()['total'] or 0
+        # Construir condições para filtros
+        link_condition = "cl.user_id = ?"
+        params = [user_id]
         
-        # Total de links ativos
-        active_links = conn.execute('''
-            SELECT COUNT(*) as count
-            FROM custom_links
-            WHERE user_id = ? AND is_active = 1
-        ''', (user_id,)).fetchone()['count'] or 0
+        if link_id != 'all' and link_id.isdigit():
+            link_condition += " AND cl.id = ?"
+            params.append(int(link_id))
         
-        # Total de números ativos
-        active_numbers = conn.execute('''
-            SELECT COUNT(*) as count
-            FROM whatsapp_numbers
-            WHERE user_id = ?
-        ''', (user_id,)).fetchone()['count'] or 0
+        # Adicionar condições de data se fornecidas
+        date_condition = ""
+        date_params = []
+        if start_date:
+            date_condition += " AND date(rl.redirect_time) >= date(?)"
+            date_params.append(start_date)
+        if end_date:
+            date_condition += " AND date(rl.redirect_time) <= date(?)"
+            date_params.append(end_date)
         
-        # Média diária considerando o período selecionado
-        if start_date and end_date:
-            # Calcular a média baseada no período selecionado
-            daily_average_query = f'''
-                SELECT COUNT(*) as count, 
-                       julianday(?) - julianday(?) + 1 as days
-                FROM redirect_logs rl
-                JOIN custom_links cl ON rl.link_id = cl.id
-                WHERE {link_condition} {date_condition}
-            '''
-            daily_params = params + date_params + [end_date, start_date]
+        # Cópias dos parâmetros para diferentes consultas
+        redirect_params = params.copy() + date_params
+        
+        with get_db_connection() as conn:
+            # Se não conseguir executar as consultas, retornar estatísticas vazias
+            try:
+                # Total de cliques usando a tabela de redirecionamentos diretamente
+                total_clicks_query = f'''
+                    SELECT COUNT(*) as total 
+                    FROM redirect_logs rl
+                    JOIN custom_links cl ON rl.link_id = cl.id
+                    WHERE {link_condition} {date_condition}
+                '''
+                
+                total_clicks = conn.execute(total_clicks_query, params + date_params).fetchone()['total'] or 0
+                
+                # Total de links ativos
+                active_links = conn.execute('''
+                    SELECT COUNT(*) as count
+                    FROM custom_links
+                    WHERE user_id = ? AND is_active = 1
+                ''', (user_id,)).fetchone()['count'] or 0
+                
+                # Total de números ativos
+                active_numbers = conn.execute('''
+                    SELECT COUNT(*) as count
+                    FROM whatsapp_numbers
+                    WHERE user_id = ?
+                ''', (user_id,)).fetchone()['count'] or 0
+                
+                # Média diária considerando o período selecionado
+                if start_date and end_date:
+                    # Calcular a média baseada no período selecionado
+                    daily_average_query = f'''
+                        SELECT COUNT(*) as count, 
+                            julianday(?) - julianday(?) + 1 as days
+                        FROM redirect_logs rl
+                        JOIN custom_links cl ON rl.link_id = cl.id
+                        WHERE {link_condition} {date_condition}
+                    '''
+                    daily_params = params + date_params + [end_date, start_date]
+                    
+                    result = conn.execute(daily_average_query, daily_params).fetchone()
+                    count = result['count'] or 0
+                    days = result['days'] or 1
+                    
+                    daily_average = round(count / days) if count > 0 else 0
+                else:
+                    # Sem datas selecionadas, usar os últimos 7 dias (comportamento padrão)
+                    daily_average_query = f'''
+                        SELECT COUNT(*) as count
+                        FROM redirect_logs rl
+                        JOIN custom_links cl ON rl.link_id = cl.id
+                        WHERE {link_condition} AND rl.redirect_time >= date('now', '-7 days')
+                    '''
+                    
+                    daily_average_data = conn.execute(daily_average_query, params).fetchone()
+                    daily_average = round(daily_average_data['count'] / 7) if daily_average_data['count'] else 0
+            except Exception as e:
+                print(f"Erro ao buscar estatísticas: {e}")
+                # Retornar valores padrão
+                total_clicks = 0
+                active_links = 0
+                active_numbers = 0
+                daily_average = 0
             
-            result = conn.execute(daily_average_query, daily_params).fetchone()
-            count = result['count'] or 0
-            days = result['days'] or 1
-            
-            daily_average = round(count / days) if count > 0 else 0
-        else:
-            # Sem datas selecionadas, usar os últimos 7 dias (comportamento padrão)
-            daily_average_query = f'''
-                SELECT COUNT(*) as count
-                FROM redirect_logs rl
-                JOIN custom_links cl ON rl.link_id = cl.id
-                WHERE {link_condition} AND rl.redirect_time >= date('now', '-7 days')
-            '''
-            
-            daily_average_data = conn.execute(daily_average_query, params).fetchone()
-            daily_average = round(daily_average_data['count'] / 7) if daily_average_data['count'] else 0
-        
+            return jsonify({
+                'total_clicks': total_clicks,
+                'active_links': active_links,
+                'active_numbers': active_numbers,
+                'daily_average': daily_average
+            })
+    except Exception as e:
+        print(f"Erro em get_stats_summary: {e}")
         return jsonify({
-            'total_clicks': total_clicks,
-            'active_links': active_links,
-            'active_numbers': active_numbers,
-            'daily_average': daily_average
+            'total_clicks': 0,
+            'active_links': 0,
+            'active_numbers': 0,
+            'daily_average': 0,
+            'error': str(e)
         })
 
 # API para obter estatísticas detalhadas
@@ -1315,7 +1425,55 @@ def get_map_stats():
 def serve_static(filename):
     return send_from_directory('static', filename)
 
+# Rota para executar script SQL e inicializar o banco de dados manualmente
+@app.route('/setup-db')
+def setup_db():
+    """
+    Rota para inicializar o banco de dados manualmente.
+    IMPORTANTE: Em produção, esta rota deve ser protegida ou removida
+    """
+    try:
+        with get_db_connection() as conn:
+            cursor = get_db_cursor(conn)
+            
+            # Verificar se a aplicação está configurada para usar PostgreSQL
+            if not app.config.get('USE_POSTGRES', False):
+                return jsonify({
+                    'success': False,
+                    'message': 'Esta rota só é válida para configuração com PostgreSQL.'
+                })
+            
+            # Executar o script SQL de criação de tabelas
+            script_path = os.path.join(os.path.dirname(__file__), 'criar_tabelas_postgres.sql')
+            if os.path.exists(script_path):
+                with open(script_path, 'r') as f:
+                    sql_script = f.read()
+                    cursor.execute(sql_script)
+                    conn.commit()
+                
+                # Verificar se as tabelas foram criadas
+                cursor.execute("SELECT COUNT(*) FROM users")
+                user_count = cursor.fetchone()[0]
+                
+                return render_template('setup_success.html', 
+                                       message="Banco de dados configurado com sucesso!",
+                                       user_count=user_count)
+            else:
+                return render_template('setup_error.html',
+                                       error="Arquivo SQL não encontrado. Por favor, entre em contato com o administrador.")
+    except Exception as e:
+        error_msg = str(e)
+        return render_template('setup_error.html',
+                              error=f"Erro ao configurar banco de dados: {error_msg}")
+
 if __name__ == '__main__':
+    # Verificar banco de dados antes de iniciar
+    with app.app_context():
+        if not verify_db_setup():
+            print("⚠️ Aviso: O banco de dados pode não estar configurado corretamente!")
+        else:
+            print("✅ Banco de dados verificado e pronto!")
+    
     # Executar a aplicação com configurações corretas para acesso externo
     import os
     port = int(os.environ.get('PORT', 3333))

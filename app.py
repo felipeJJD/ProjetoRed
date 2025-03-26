@@ -24,89 +24,7 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True  # Recarregar templates automaticamen
 def get_db_connection():
     conn = sqlite3.connect(app.config['DATABASE'])
     conn.row_factory = sqlite3.Row
-    # Garantir que as chaves estrangeiras estejam ativadas
-    conn.execute('PRAGMA foreign_keys = ON;')
     return conn
-
-def fix_foreign_key_constraints(conn):
-    """
-    Corrige as restrições de chave estrangeira nas tabelas para permitir NULL em vez de CASCADE.
-    Isso facilita a exclusão de registros referenciados.
-    """
-    print("Verificando e corrigindo restrições de chave estrangeira...")
-    
-    # Buscar estrutura atual das tabelas com chaves estrangeiras
-    fk_info = {}
-    tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
-    for table in tables:
-        table_name = table['name']
-        fks = conn.execute(f"PRAGMA foreign_key_list({table_name})").fetchall()
-        if fks:
-            fk_info[table_name] = fks
-    
-    # Verificar se a tabela redirect_logs tem as chaves estrangeiras configuradas para permitir NULL
-    if 'redirect_logs' in fk_info:
-        # Criar backup antes de alterar estrutura
-        conn.execute("BEGIN TRANSACTION")
-        try:
-            # Criar tabela temporária com a estrutura correta
-            conn.execute('''
-                CREATE TABLE IF NOT EXISTS redirect_logs_temp (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    link_id INTEGER,
-                    number_id INTEGER,
-                    redirect_time TIMESTAMP DEFAULT (datetime('now')),
-                    ip_address TEXT,
-                    user_agent TEXT,
-                    FOREIGN KEY (link_id) REFERENCES custom_links(id) ON DELETE SET NULL,
-                    FOREIGN KEY (number_id) REFERENCES whatsapp_numbers(id) ON DELETE SET NULL
-                )
-            ''')
-            
-            # Transferir dados
-            conn.execute('''
-                INSERT INTO redirect_logs_temp (id, link_id, number_id, redirect_time, ip_address, user_agent)
-                SELECT id, link_id, number_id, redirect_time, ip_address, user_agent
-                FROM redirect_logs
-            ''')
-            
-            # Substituir tabela
-            conn.execute("DROP TABLE redirect_logs")
-            conn.execute("ALTER TABLE redirect_logs_temp RENAME TO redirect_logs")
-            
-            conn.commit()
-            print("Restrições de chave estrangeira corrigidas para tabela redirect_logs")
-        except Exception as e:
-            conn.execute("ROLLBACK")
-            print(f"Erro ao corrigir restrições: {str(e)}")
-    
-    # Verificar se existem registros órfãos na tabela redirect_logs
-    orphan_logs = conn.execute('''
-        SELECT COUNT(*) as count FROM redirect_logs
-        WHERE (link_id IS NOT NULL AND link_id NOT IN (SELECT id FROM custom_links))
-           OR (number_id IS NOT NULL AND number_id NOT IN (SELECT id FROM whatsapp_numbers))
-    ''').fetchone()
-    
-    if orphan_logs and orphan_logs['count'] > 0:
-        print(f"Encontrados {orphan_logs['count']} registros de redirecionamento com referências inválidas")
-        try:
-            # Atualizar registros para remover referências a registros inexistentes
-            conn.execute('''
-                UPDATE redirect_logs
-                SET link_id = NULL
-                WHERE link_id IS NOT NULL AND link_id NOT IN (SELECT id FROM custom_links)
-            ''')
-            
-            conn.execute('''
-                UPDATE redirect_logs
-                SET number_id = NULL
-                WHERE number_id IS NOT NULL AND number_id NOT IN (SELECT id FROM whatsapp_numbers)
-            ''')
-            
-            conn.commit()
-            print(f"Corrigidas referências inválidas em registros de redirecionamento")
-        except Exception as e:
-            print(f"Erro ao corrigir registros órfãos: {str(e)}")
 
 def init_db():
     with get_db_connection() as conn:
@@ -181,17 +99,17 @@ def init_db():
             )
         ''')
         
-        # Nova tabela para logs de redirecionamentos com DELETE SET NULL na chave estrangeira
+        # Nova tabela para logs de redirecionamentos
         conn.execute('''
             CREATE TABLE IF NOT EXISTS redirect_logs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                link_id INTEGER,
-                number_id INTEGER,
+                link_id INTEGER NOT NULL,
+                number_id INTEGER NOT NULL,
                 redirect_time TIMESTAMP DEFAULT (datetime('now')),
                 ip_address TEXT,
                 user_agent TEXT,
-                FOREIGN KEY (link_id) REFERENCES custom_links(id) ON DELETE SET NULL,
-                FOREIGN KEY (number_id) REFERENCES whatsapp_numbers(id) ON DELETE SET NULL
+                FOREIGN KEY (link_id) REFERENCES custom_links (id),
+                FOREIGN KEY (number_id) REFERENCES whatsapp_numbers (id)
             )
         ''')
         
@@ -298,9 +216,6 @@ def init_db():
                 VALUES (?, 'padrao', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...')
             ''', (user_id,))
 
-        # Corrigir restrições de chave estrangeira
-        fix_foreign_key_constraints(conn)
-
 # Inicializar o banco de dados
 init_db()
 
@@ -405,36 +320,33 @@ def manage_numbers():
                 
                 # Verificar se o número já existe para este usuário
                 existing = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ? AND phone_number = ?', 
-                                    (user_id, formatted_number)).fetchone()
+                                     (user_id, formatted_number)).fetchone()
                 if existing:
                     # Se já existir mas estiver inativo, reativá-lo
                     if existing['is_active'] == 0:
                         conn.execute('UPDATE whatsapp_numbers SET is_active = 1, description = ? WHERE id = ?', 
-                                (description or existing['description'], existing['id']))
-                        conn.commit()
+                                  (description or existing['description'], existing['id']))
+                        conn.commit()  # Commit explícito para a reativação
                         return jsonify({'success': True, 'message': 'Número reativado com sucesso'})
                     return jsonify({'success': False, 'error': 'Este número já está cadastrado para o seu usuário'}), 400
                     
                 # Adicionar novo número
-                conn.execute('INSERT INTO whatsapp_numbers (user_id, phone_number, description, is_active) VALUES (?, ?, ?, 1)', 
-                        (user_id, formatted_number, description))
-                conn.commit()
-                
-                # Verificar se o número foi inserido corretamente
-                new_number = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ? AND phone_number = ?', 
-                                    (user_id, formatted_number)).fetchone()
-                if not new_number:
-                    return jsonify({'success': False, 'error': 'Falha ao adicionar o número. Tente novamente.'}), 500
-                
-                # Retornar JSON em vez de redirecionamento
-                return jsonify({'success': True, 'message': 'Número adicionado com sucesso'})
+                try:
+                    conn.execute('INSERT INTO whatsapp_numbers (user_id, phone_number, description, is_active) VALUES (?, ?, ?, 1)', 
+                               (user_id, formatted_number, description))
+                    conn.commit()  # Commit explícito para a inserção
+                    # Retornar JSON em vez de redirecionamento
+                    return jsonify({'success': True, 'message': 'Número adicionado com sucesso'})
+                except Exception as e:
+                    print(f"Erro ao adicionar número: {str(e)}")
+                    return jsonify({'success': False, 'error': f'Erro ao adicionar número: {str(e)}'}), 500
             
             # Se for GET, retornar todos os números ativos
             numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ? AND is_active = 1', (user_id,)).fetchall()
             return jsonify([dict(number) for number in numbers])
     except Exception as e:
-        print(f"Erro ao gerenciar números: {str(e)}")
-        return jsonify({'success': False, 'error': f'Ocorreu um erro ao processar sua solicitação: {str(e)}'}), 500
+        print(f"Erro em manage_numbers: {str(e)}")
+        return jsonify({'success': False, 'error': f'Erro ao processar sua solicitação: {str(e)}'}), 500
 
 # Função para validar número de telefone
 def validate_phone_number(phone):
@@ -537,20 +449,14 @@ def manage_links():
                 
                 # Verificar se o link já existe para este usuário
                 existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ?', 
-                                    (link_name, user_id)).fetchone()
+                                      (link_name, user_id)).fetchone()
                 if existing:
                     return jsonify({'success': False, 'error': 'Este link já existe para o seu usuário'}), 400
                 
-                # Inserir o novo link e garantir que seja salvo com commit
+                # Adicionar novo link
                 conn.execute('INSERT INTO custom_links (user_id, link_name, custom_message) VALUES (?, ?, ?)', 
-                        (user_id, link_name, custom_message))
-                conn.commit()
-                
-                # Verificar se o link foi inserido corretamente
-                new_link = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ?', 
-                                    (link_name, user_id)).fetchone()
-                if not new_link:
-                    return jsonify({'success': False, 'error': 'Falha ao adicionar o link. Tente novamente.'}), 500
+                           (user_id, link_name, custom_message))
+                conn.commit()  # Commit explícito para garantir que a inserção seja salva
                 
                 return jsonify({'success': True, 'message': 'Link adicionado com sucesso'})
             
@@ -558,8 +464,8 @@ def manage_links():
             links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
             return jsonify([dict(link) for link in links])
     except Exception as e:
-        print(f"Erro na API de links: {str(e)}")
-        return jsonify({'success': False, 'error': f'Ocorreu um erro ao processar sua solicitação: {str(e)}'}), 500
+        print(f"Erro ao gerenciar links: {str(e)}")
+        return jsonify({'success': False, 'error': f'Erro ao processar sua solicitação: {str(e)}'}), 500
 
 def is_valid_link_name(link_name):
     # Verificar caracteres permitidos (letras, números, hífen e barra)
@@ -626,7 +532,7 @@ def update_link(link_id):
         with get_db_connection() as conn:
             # Verificar se o link pertence ao usuário atual
             link = conn.execute('SELECT * FROM custom_links WHERE id = ? AND user_id = ?', 
-                            (link_id, user_id)).fetchone()
+                             (link_id, user_id)).fetchone()
             if not link:
                 return jsonify({'success': False, 'error': 'Link não encontrado ou sem permissão'}), 403
             
@@ -637,43 +543,32 @@ def update_link(link_id):
                     return jsonify({'success': False, 'error': 'Nome do link contém caracteres inválidos ou formato incorreto'}), 400
                     
                 existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ? AND id != ?', 
-                                    (data['link_name'], user_id, link_id)).fetchone()
+                                     (data['link_name'], user_id, link_id)).fetchone()
                 if existing:
                     return jsonify({'success': False, 'error': 'Este nome de link já está em uso'}), 400
             
             # Atualizar o link
-            updates_made = False
-            
-            if 'link_name' in data:
-                conn.execute('UPDATE custom_links SET link_name = ? WHERE id = ?', 
-                        (data['link_name'], link_id))
-                updates_made = True
-            
-            if 'custom_message' in data:
-                conn.execute('UPDATE custom_links SET custom_message = ? WHERE id = ?', 
-                        (data['custom_message'], link_id))
-                updates_made = True
-            
-            if 'is_active' in data:
-                conn.execute('UPDATE custom_links SET is_active = ? WHERE id = ?', 
-                        (1 if data['is_active'] else 0, link_id))
-                updates_made = True
-            
-            if updates_made:
-                conn.commit()
+            try:
+                if 'link_name' in data:
+                    conn.execute('UPDATE custom_links SET link_name = ? WHERE id = ?', 
+                              (data['link_name'], link_id))
                 
-                # Verificar se a atualização foi bem-sucedida
-                updated_link = conn.execute('SELECT * FROM custom_links WHERE id = ?', (link_id,)).fetchone()
-                if not updated_link:
-                    return jsonify({'success': False, 'error': 'Falha ao atualizar o link. O link pode ter sido excluído.'}), 500
+                if 'custom_message' in data:
+                    conn.execute('UPDATE custom_links SET custom_message = ? WHERE id = ?', 
+                              (data['custom_message'], link_id))
                 
-                if 'link_name' in data and updated_link['link_name'] != data['link_name']:
-                    return jsonify({'success': False, 'error': 'Falha ao atualizar o nome do link.'}), 500
-            
-            return jsonify({'success': True, 'message': 'Link atualizado com sucesso'})
+                if 'is_active' in data:
+                    conn.execute('UPDATE custom_links SET is_active = ? WHERE id = ?', 
+                              (1 if data['is_active'] else 0, link_id))
+                
+                conn.commit()  # Commit explícito para garantir que as alterações sejam salvas
+                return jsonify({'success': True, 'message': 'Link atualizado com sucesso'})
+            except Exception as e:
+                print(f"Erro ao atualizar link: {str(e)}")
+                return jsonify({'success': False, 'error': f'Erro ao atualizar link: {str(e)}'}), 500
     except Exception as e:
-        print(f"Erro ao atualizar link: {str(e)}")
-        return jsonify({'success': False, 'error': f'Ocorreu um erro ao atualizar o link: {str(e)}'}), 500
+        print(f"Erro em update_link: {str(e)}")
+        return jsonify({'success': False, 'error': 'Erro ao processar sua solicitação. Verifique o formato dos dados.'}), 400
 
 # Lista de rotas reservadas que não podem ser usadas como link_name
 reserved_routes = [

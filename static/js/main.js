@@ -164,11 +164,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 const numberId = button.dataset.id;
                 
                 if (confirm('Tem certeza que deseja excluir este número?')) {
+                    // Mostrar mensagem de carregamento
+                    showToast('Excluindo número...', 'info');
+                    
                     // Enviar solicitação para excluir número
                     fetch(`${getBaseUrl()}/api/numbers/${numberId}`, {
                         method: 'DELETE',
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Erro HTTP: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
                             // Remover linha da tabela
@@ -176,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             row.remove();
                             
                             // Mostrar mensagem de sucesso
-                            showToast(data.message);
+                            showToast(data.message || 'Número excluído com sucesso!');
                             
                             // Se não houver mais números, adicionar mensagem
                             if (numbersList.querySelectorAll('tr').length === 0) {
@@ -185,12 +193,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 numbersList.appendChild(emptyRow);
                             }
                         } else {
-                            showToast(data.message, 'danger');
+                            showToast(data.error || 'Erro ao excluir número', 'danger');
                         }
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        showToast('Ocorreu um erro ao excluir o número', 'danger');
+                        showToast('Erro ao excluir número: ' + error.message, 'danger');
                     });
                 }
             }
@@ -297,11 +305,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 const linkId = button.dataset.id;
                 
                 if (confirm('Tem certeza que deseja excluir este link?')) {
+                    // Mostrar mensagem de carregamento
+                    showToast('Excluindo link...', 'info');
+                    
                     // Enviar solicitação para excluir link
                     fetch(`${getBaseUrl()}/api/links/${linkId}`, {
                         method: 'DELETE',
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Erro HTTP: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
                             // Remover linha da tabela
@@ -309,7 +325,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             row.remove();
                             
                             // Mostrar mensagem de sucesso
-                            showToast(data.message);
+                            showToast(data.message || 'Link excluído com sucesso!');
                             
                             // Se não houver mais links, adicionar mensagem
                             if (linksList.querySelectorAll('tr').length === 0) {
@@ -318,12 +334,12 @@ document.addEventListener('DOMContentLoaded', function() {
                                 linksList.appendChild(emptyRow);
                             }
                         } else {
-                            showToast(data.message, 'danger');
+                            showToast(data.error || 'Erro ao excluir link', 'danger');
                         }
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        showToast('Ocorreu um erro ao excluir o link', 'danger');
+                        showToast('Erro ao excluir link: ' + error.message, 'danger');
                     });
                 }
             }

@@ -160,11 +160,14 @@
                                                 <td>{{ link.click_count }}</td>
                                                 <td>{{ link.total_redirects }}</td>
                                                 <td>
-                                                    <div class="input-group">
-                                                        <input type="text" class="form-control form-control-sm" value="{{ request.host_url }}redirect/{{ link.link_name }}" readonly>
-                                                        <button class="btn btn-sm btn-outline-secondary copy-btn" data-clipboard-text="{{ request.host_url }}redirect/{{ link.link_name }}">
-                                                            <i class="bi bi-clipboard"></i>
-                                                        </button>
+                                                    <div class="d-flex flex-wrap">
+                                                        <div class="input-group mb-2 me-2" style="max-width: 450px;">
+                                                            <span class="input-group-text bg-dark text-light"><i class="bi bi-link-45deg me-1"></i> Link</span>
+                                                            <input type="text" class="form-control form-control-sm" value="{{ request.host_url }}{{ link.link_name }}" readonly>
+                                                            <button class="btn btn-outline-primary btn-sm copy-btn" data-clipboard-text="{{ request.host_url }}{{ link.link_name }}">
+                                                                <i class="bi bi-clipboard"></i>
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </td>
                                             </tr>

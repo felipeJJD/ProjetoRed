@@ -59,7 +59,7 @@ Após fazer login, você verá o painel administrativo com três abas principais
 2. Digite um nome para o link (exemplo: "promocao-janeiro")
    - Use apenas letras, números e hífens
    - Evite espaços e caracteres especiais
-   - O nome será usado na URL (exemplo: `https://seusite.com/redirect/promocao-janeiro`)
+   - O nome será usado na URL (exemplo: `https://seusite.com/promocao-janeiro`)
 3. Escreva uma mensagem personalizada que será exibida antes do redirecionamento
 4. Clique em "Salvar"
 
@@ -142,4 +142,20 @@ Se precisar de ajuda adicional com o sistema, entre em contato com o administrad
 
 ---
 
-*Este tutorial foi atualizado pela última vez em Junho de 2024.* 
+*Este tutorial foi atualizado pela última vez em Junho de 2024.*
+
+- O sistema gerará um link único para cada campanha, como por exemplo:
+  
+  ```
+  https://seusite.com/promocao-janeiro
+  ```
+
+  Este link deve ser compartilhado com seus clientes. Quando eles clicarem, serão automaticamente redirecionados para o WhatsApp de um dos atendentes cadastrados no sistema.
+
+Ao criar um link personalizado, você precisa fornecer:
+
+- **Nome do Link**: Um identificador único para o link (ex: "promocao-janeiro")
+- O nome será usado na URL (exemplo: `https://seusite.com/promocao-janeiro`)
+- **Mensagem Personalizada**: Texto opcional que será enviado quando o cliente abrir o WhatsApp
+
+Não use caracteres especiais ou espaços no nome do link. Use apenas letras, números e hífens. 

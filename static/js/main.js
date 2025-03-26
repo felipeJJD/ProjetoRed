@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Função para atualizar a visualização prévia do link
     function updateLinkPreview() {
-        const baseUrl = getBaseUrl() + '/redirect/';
+        const baseUrl = getBaseUrl() + '/';
         const linkName = this.value || 'seu-link';
         if (this.id === 'linkName') {
             previewLink.textContent = baseUrl + linkName;
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('editCustomMessage').value = customMessage;
                 
                 // Atualizar visualização prévia
-                const baseUrl = getBaseUrl() + '/redirect/';
+                const baseUrl = getBaseUrl() + '/';
                 document.getElementById('editPreviewLink').textContent = baseUrl + linkName;
                 
                 // Abrir modal
@@ -252,14 +252,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const button = e.target.closest('.copy-link');
                 const url = button.dataset.url;
                 
-                // Copiar para área de transferência
                 navigator.clipboard.writeText(url)
                     .then(() => {
                         showToast('Link copiado para a área de transferência!');
                     })
                     .catch(err => {
-                        console.error('Erro ao copiar: ', err);
-                        showToast('Não foi possível copiar o link', 'danger');
+                        console.error('Erro ao copiar:', err);
+                        showToast('Erro ao copiar link', 'danger');
                     });
             }
             

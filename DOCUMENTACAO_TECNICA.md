@@ -118,64 +118,39 @@ A aplicação implementa uma API RESTful para gerenciar números e links:
 #### Logs de Redirecionamento
 - `GET /api/redirects/recent`: Lista os redirecionamentos mais recentes
 
-### Algoritmo de Redirecionamento
+## Redirecionamento
 
-O redirecionamento é feito pela rota `/redirect/<link_name>` que:
+O sistema funciona da seguinte forma:
 
-1. Busca o link personalizado pelo nome
-2. Incrementa o contador de cliques
-3. Recupera todos os números de WhatsApp do usuário
-4. Seleciona aleatoriamente um número da lista
-5. Registra o redirecionamento na tabela `redirect_logs` com:
-   - ID do link
-   - ID do número selecionado
-   - Timestamp atual (no fuso horário local)
-   - Endereço IP do cliente
-   - User-Agent do navegador
-6. Formata a URL do WhatsApp com o número selecionado
-7. Renderiza a página de redirecionamento com:
-   - Mensagem personalizada do link
-   - URL do WhatsApp para redirecionamento
+1. Usuários cadastram números de WhatsApp e links personalizados no sistema
+2. Quando um cliente acessa um link personalizado (ex: `https://seusite.com/nome-do-link`), o sistema:
+   - Identifica o usuário proprietário do link
+   - Seleciona um número de WhatsApp do usuário usando um algoritmo balanceado
+   - Redireciona o cliente para o WhatsApp com o número selecionado
+   - Registra o redirecionamento para estatísticas
+
+O redirecionamento é feito pela rota `/<link_name>` que:
+- Encontra o link correspondente no banco de dados
+- Seleciona um número de telefone disponível usando um algoritmo de balanceamento
+- Registra o acesso e estatísticas
+- Redireciona o usuário para o WhatsApp
+
+Por compatibilidade, a rota `/redirect/<link_name>` continua funcionando da mesma forma.
+
+A função de redirecionamento:
 
 ```python
-@app.route('/redirect/<link_name>')
+@app.route('/<link_name>')
 def redirect_whatsapp(link_name):
-    # Buscar o link no banco de dados
-    with get_db_connection() as conn:
-        link = conn.execute('SELECT * FROM custom_links WHERE link_name = ?', (link_name,)).fetchone()
-        
-        # Se o link existir
-        if link:
-            # Incrementar contador de cliques
-            conn.execute('UPDATE custom_links SET click_count = click_count + 1 WHERE id = ?', (link['id'],))
-            conn.commit()
-            
-            # Buscar todos os números de WhatsApp do mesmo usuário
-            numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (link['user_id'],)).fetchall()
-            
-            # Se houver números cadastrados
-            if numbers:
-                # Selecionar um número aleatoriamente
-                selected_number = random.choice(numbers)
-                phone = selected_number['phone_number']
-                
-                # Registrar o log de redirecionamento
-                ip_address = request.remote_addr
-                user_agent = request.headers.get('User-Agent', '')
-                
-                conn.execute('''
-                    INSERT INTO redirect_logs (link_id, number_id, ip_address, user_agent)
-                    VALUES (?, ?, ?, ?)
-                ''', (link['id'], selected_number['id'], ip_address, user_agent))
-                conn.commit()
-                
-                # Formatar a URL do WhatsApp
-                whatsapp_url = f"https://wa.me/{phone}"
-                
-                # Renderizar a página de redirecionamento
-                return render_template('redirect.html', 
-                                      whatsapp_url=whatsapp_url, 
-                                      custom_message=link['custom_message'])
+    # Verifica se não é uma rota reservada
+    if link_name in reserved_routes:
+        abort(404)  # Retorna 404 para evitar conflito com rotas existentes
+    
+    # Processo de redirecionamento
+    # ...
+    
+    # Redireciona para o WhatsApp
+    return redirect(whatsapp_url)
 ```
 
 ## Frontend

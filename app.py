@@ -2,7 +2,7 @@ import os
 import random
 import sqlite3
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, jsonify, url_for, session, send_from_directory
+from flask import Flask, render_template, request, redirect, jsonify, url_for, session, send_from_directory, abort
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests  # Para chamadas API externas
@@ -488,9 +488,27 @@ def update_link(link_id):
         
         return jsonify({'success': True})
 
-# Rota para redirecionamento direto ao WhatsApp
+# Lista de rotas reservadas que não podem ser usadas como link_name
+reserved_routes = [
+    '', 'api', 'login', 'logout', 'admin', 'dashboard', 'administracao', 
+    'static', 'redirect', 'favicon.ico', 'robots.txt'
+]
+
+# Rota para redirecionamento direto ao WhatsApp (mantém o prefixo redirect por compatibilidade)
 @app.route('/redirect/<link_name>')
+def redirect_whatsapp_with_prefix(link_name):
+    return redirect_whatsapp_func(link_name)
+
+# Nova rota simplificada, sem o prefixo "redirect"
+@app.route('/<link_name>')
 def redirect_whatsapp(link_name):
+    # Verificar se o link_name não é uma rota reservada
+    if link_name in reserved_routes:
+        abort(404)  # Retorna 404 Not Found para evitar conflito com rotas existentes
+    return redirect_whatsapp_func(link_name)
+
+# Função que contém a lógica de redirecionamento
+def redirect_whatsapp_func(link_name):
     redirect_start_time = datetime.now()
     
     # Melhorar a captura do IP para considerar proxies

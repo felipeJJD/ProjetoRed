@@ -174,10 +174,10 @@
                                                         </div>
                                                     </td>
                                                     <td><span class="badge bg-primary">{{ link.click_count or 0 }}</span></td>
-                                                    <td><code>{{ request.host_url }}redirect/{{ link.link_name }}</code></td>
+                                                    <td><code>{{ request.host_url }}{{ link.link_name }}</code></td>
                                                     <td>
                                                         <div class="btn-group">
-                                                            <button class="btn btn-sm btn-info copy-link" data-url="{{ request.host_url }}redirect/{{ link.link_name }}">
+                                                            <button class="btn btn-sm btn-info copy-link" data-url="{{ request.host_url }}{{ link.link_name }}">
                                                                 <i class="bi bi-clipboard"></i>
                                                             </button>
                                                             <button class="btn btn-sm btn-warning edit-link" 
@@ -289,15 +289,12 @@
                     <form id="addLinkForm">
                         <div class="mb-3">
                             <label for="linkName" class="form-label">Nome do Link</label>
-                            <input type="text" class="form-control" id="linkName" placeholder="Ex: promocao-janeiro" required>
-                            <div class="form-text">Use apenas letras, números e hífens. Evite espaços e caracteres especiais.</div>
+                            <input type="text" class="form-control" id="linkName" required>
+                            <div class="form-text">URL Completa: <code id="previewLink">{{ request.host_url }}seu-link</code></div>
                         </div>
                         <div class="mb-3">
                             <label for="customMessage" class="form-label">Mensagem Personalizada</label>
                             <textarea class="form-control" id="customMessage" rows="3" placeholder="Digite a mensagem que aparecerá antes do redirecionamento">Você será redirecionado para um de nossos atendentes. Aguarde um momento...</textarea>
-                        </div>
-                        <div class="mb-3">
-                            <div class="form-text">URL Completa: <code id="previewLink">{{ request.host_url }}redirect/seu-link</code></div>
                         </div>
                     </form>
                 </div>
@@ -323,14 +320,11 @@
                         <div class="mb-3">
                             <label for="editLinkName" class="form-label">Nome do Link</label>
                             <input type="text" class="form-control" id="editLinkName" required>
-                            <div class="form-text">Use apenas letras, números e hífens. Evite espaços e caracteres especiais.</div>
+                            <div class="form-text">URL Completa: <code id="editPreviewLink">{{ request.host_url }}seu-link</code></div>
                         </div>
                         <div class="mb-3">
                             <label for="editCustomMessage" class="form-label">Mensagem Personalizada</label>
                             <textarea class="form-control" id="editCustomMessage" rows="3"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <div class="form-text">URL Completa: <code id="editPreviewLink">{{ request.host_url }}redirect/seu-link</code></div>
                         </div>
                     </form>
                 </div>

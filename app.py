@@ -206,6 +206,9 @@ def fix_data_inconsistencies(conn):
     """
     print("Verificando e corrigindo inconsistências de dados...")
     
+    # Obter um cursor para executar as consultas
+    cursor = get_db_cursor(conn)
+    
     # 1. Identificar registros de redirecionamento que apontam para números inexistentes
     orphan_query = '''
         SELECT rl.id, rl.number_id, cl.user_id
@@ -215,7 +218,8 @@ def fix_data_inconsistencies(conn):
         WHERE wn.id IS NULL
     '''
     
-    orphans = conn.execute(orphan_query).fetchall()
+    cursor.execute(orphan_query)
+    orphans = cursor.fetchall()
     
     if orphans:
         print(f"Encontrados {len(orphans)} registros de redirecionamento para números inexistentes.")
@@ -225,15 +229,16 @@ def fix_data_inconsistencies(conn):
             user_id = orphan['user_id']
             
             # Buscar um número válido deste usuário
-            valid_number = conn.execute('''
+            cursor.execute('''
                 SELECT id FROM whatsapp_numbers 
                 WHERE user_id = ? 
                 LIMIT 1
-            ''', (user_id,)).fetchone()
+            ''', (user_id,))
+            valid_number = cursor.fetchone()
             
             if valid_number:
                 # Atualizar o registro para apontar para um número válido
-                conn.execute('''
+                cursor.execute('''
                     UPDATE redirect_logs
                     SET number_id = ?
                     WHERE id = ?
@@ -241,7 +246,7 @@ def fix_data_inconsistencies(conn):
                 print(f"Corrigido: redirect_log ID {orphan['id']} agora aponta para number_id {valid_number['id']}")
             else:
                 # Se não houver número válido, remover o registro de log
-                conn.execute('DELETE FROM redirect_logs WHERE id = ?', (orphan['id'],))
+                cursor.execute('DELETE FROM redirect_logs WHERE id = ?', (orphan['id'],))
                 print(f"Removido: redirect_log ID {orphan['id']} (sem número válido disponível)")
         
         conn.commit()
@@ -1448,8 +1453,18 @@ def setup_db():
             if os.path.exists(script_path):
                 with open(script_path, 'r') as f:
                     sql_script = f.read()
-                    cursor.execute(sql_script)
-                    conn.commit()
+                    # Dividir o script em comandos separados para execução individual
+                    commands = sql_script.split(';')
+                    
+                    for command in commands:
+                        # Pular comandos vazios
+                        if command.strip():
+                            try:
+                                cursor.execute(command)
+                                conn.commit()
+                            except Exception as cmd_error:
+                                print(f"Erro ao executar comando SQL: {cmd_error}")
+                                print(f"Comando que falhou: {command[:100]}...")
                 
                 # Verificar se as tabelas foram criadas
                 cursor.execute("SELECT COUNT(*) FROM users")

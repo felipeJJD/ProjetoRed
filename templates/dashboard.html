@@ -733,19 +733,41 @@
                             const row = document.createElement('tr');
                             
                             // Formatar a data
-                            const redirectDate = new Date(redirect.redirect_time);
-                            // Ajustar para o fuso horário de Brasília
-                            const options = { 
-                                timeZone: 'America/Sao_Paulo',
-                                year: 'numeric', 
-                                month: '2-digit', 
+                            let redirectDate;
+                            try {
+                                // Verificar se já é um objeto Date válido
+                                if (redirect.redirect_time instanceof Date && !isNaN(redirect.redirect_time)) {
+                                    redirectDate = redirect.redirect_time;
+                                } else {
+                                    // Tentar criar um objeto Date a partir da string
+                                    redirectDate = new Date(redirect.redirect_time);
+                                    
+                                    // Se a data for inválida, tenta novamente com formato alternativo
+                                    if (isNaN(redirectDate.getTime())) {
+                                        // Tentar formato ISO sem Z
+                                        const dateStr = redirect.redirect_time.replace('Z', '').replace('T', ' ');
+                                        const [datePart, timePart] = dateStr.split(' ');
+                                        const [year, month, day] = datePart.split('-');
+                                        const [hour, minute, second] = timePart.split(':');
+                                        
+                                        redirectDate = new Date(year, month-1, day, hour, minute, second);
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Erro ao parsear data:', e, redirect.redirect_time);
+                                redirectDate = new Date(); // Fallback para data atual
+                            }
+                            
+                            // Formatar a data para exibição
+                            const formattedDate = new Intl.DateTimeFormat('pt-BR', {
+                                year: 'numeric',
+                                month: '2-digit',
                                 day: '2-digit',
                                 hour: '2-digit',
                                 minute: '2-digit',
                                 second: '2-digit',
                                 hour12: false
-                            };
-                            const formattedDate = redirectDate.toLocaleString('pt-BR', options);
+                            }).format(redirectDate);
                             
                             // Formatar o número de telefone
                             const formattedPhone = formatPhoneNumber(redirect.phone_number);

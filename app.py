@@ -1,7 +1,7 @@
 import os
 import random
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, jsonify, url_for, session, send_from_directory, abort
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -797,9 +797,27 @@ def get_recent_redirects():
         result = []
         for redirect in recent_redirects:
             access_count = redirect['access_count']
+            
+            # Converter a data UTC para o fuso horário de Brasília (UTC-3)
+            redirect_time = redirect['redirect_time']
+            try:
+                # Parse da data para objeto datetime
+                if redirect_time:
+                    # Assumindo que a data está em UTC
+                    dt_utc = datetime.fromisoformat(redirect_time.replace('Z', ''))
+                    # Brasília é UTC-3
+                    dt_brasilia = dt_utc - timedelta(hours=3)
+                    # Formatar para ISO para garantir compatibilidade
+                    redirect_time_brasilia = dt_brasilia.isoformat()
+                else:
+                    redirect_time_brasilia = redirect_time
+            except Exception as e:
+                print(f"Erro ao converter data: {e}")
+                redirect_time_brasilia = redirect_time
+            
             result_item = {
                 'id': redirect['id'],
-                'redirect_time': redirect['redirect_time'],
+                'redirect_time': redirect_time_brasilia,
                 'link_name': redirect['link_name'],
                 'phone_number': redirect['phone_number'],
                 'number_description': redirect['number_description'],

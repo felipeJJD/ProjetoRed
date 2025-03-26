@@ -421,15 +421,35 @@ def manage_links():
             if not link_name:
                 return jsonify({'success': False, 'error': 'Nome do link é obrigatório'}), 400
             
-            # Verificar se o link já existe para este usuário
+            # Verificar se o link já existe para este usuário (apenas para este usuário)
             existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ?', 
                                   (link_name, user_id)).fetchone()
             if existing:
                 return jsonify({'success': False, 'error': 'Este link já existe para o seu usuário'}), 400
             
+            # Verificar se o nome do link é uma rota reservada
+            if link_name in reserved_routes:
+                return jsonify({'success': False, 'error': 'Este nome de link é reservado pelo sistema'}), 400
+            
+            # Inserir o link (agora permitindo que outros usuários tenham o mesmo nome de link)
             conn.execute('INSERT INTO custom_links (user_id, link_name, custom_message) VALUES (?, ?, ?)', 
                        (user_id, link_name, custom_message))
-            return jsonify({'success': True, 'message': 'Link adicionado com sucesso'})
+            
+            # Verificar se outro usuário já tem este mesmo link (apenas para informação)
+            other_user_links = conn.execute('''
+                SELECT cl.id, u.username 
+                FROM custom_links cl
+                JOIN users u ON cl.user_id = u.id
+                WHERE cl.link_name = ? AND cl.user_id != ?
+            ''', (link_name, user_id)).fetchall()
+            
+            message = 'Link adicionado com sucesso'
+            if other_user_links:
+                # Informar que outros usuários têm o mesmo link, mas isso é permitido
+                users = ', '.join([link['username'] for link in other_user_links])
+                message += f'. Este link também existe para: {users}'
+            
+            return jsonify({'success': True, 'message': message})
         
         # Se for GET, retornar todos os links
         links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
@@ -466,12 +486,25 @@ def update_link(link_id):
         if not link:
             return jsonify({'success': False, 'error': 'Link não encontrado ou sem permissão'}), 403
         
-        # Se estiver tentando atualizar o nome do link, verificar se o novo nome já existe
+        # Se estiver tentando atualizar o nome do link, verificar se o novo nome já existe para este usuário
         if 'link_name' in data and data['link_name'] != link['link_name']:
+            # Verificar se o novo nome é uma rota reservada
+            if data['link_name'] in reserved_routes:
+                return jsonify({'success': False, 'error': 'Este nome de link é reservado pelo sistema'}), 400
+                
+            # Verificar apenas para o usuário atual (permitindo nomes iguais para usuários diferentes)
             existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ? AND id != ?', 
                                  (data['link_name'], user_id, link_id)).fetchone()
             if existing:
-                return jsonify({'success': False, 'error': 'Este nome de link já está em uso'}), 400
+                return jsonify({'success': False, 'error': 'Este nome de link já está em uso pelo seu usuário'}), 400
+            
+            # Verificar se outros usuários já têm este nome de link (apenas para informação)
+            other_user_links = conn.execute('''
+                SELECT cl.id, u.username 
+                FROM custom_links cl
+                JOIN users u ON cl.user_id = u.id
+                WHERE cl.link_name = ? AND cl.user_id != ?
+            ''', (data['link_name'], user_id)).fetchall()
         
         # Atualizar o link
         if 'link_name' in data:
@@ -486,7 +519,15 @@ def update_link(link_id):
             conn.execute('UPDATE custom_links SET is_active = ? WHERE id = ?', 
                       (1 if data['is_active'] else 0, link_id))
         
-        return jsonify({'success': True})
+        # Preparar mensagem de resposta
+        message = 'Link atualizado com sucesso'
+        
+        # Adicionar informação sobre outros usuários com o mesmo nome de link
+        if 'link_name' in data and other_user_links:
+            users = ', '.join([link['username'] for link in other_user_links])
+            message += f'. Este link também existe para: {users}'
+        
+        return jsonify({'success': True, 'message': message})
 
 # Lista de rotas reservadas que não podem ser usadas como link_name
 reserved_routes = [
@@ -533,17 +574,22 @@ def redirect_whatsapp_func(link_name):
     
     try:
         with get_db_connection() as conn:
-            # Procurar qual usuário é dono do link
-            link = conn.execute('''
-                SELECT cl.*, u.id as owner_id 
+            # Procurar todos os usuários que possuem este link ativo
+            links = conn.execute('''
+                SELECT cl.*, u.id as owner_id, u.username as owner_username
                 FROM custom_links cl
                 JOIN users u ON cl.user_id = u.id
                 WHERE cl.link_name = ? AND cl.is_active = 1
-            ''', (link_name,)).fetchone()
+                ORDER BY cl.id
+            ''', (link_name,)).fetchall()
             
-            if not link:
+            if not links:
                 # Link não encontrado ou inativo
                 return render_template('index.html', error='Link não encontrado ou inativo')
+            
+            # Se houver mais de um link com este nome (de diferentes usuários), escolher aleatoriamente
+            link = random.choice(links)
+            print(f"Link '{link_name}' encontrado para múltiplos usuários, selecionado: ID {link['id']} (usuário: {link['owner_username']})")
             
             # Incrementar contador de cliques
             conn.execute('UPDATE custom_links SET click_count = click_count + 1 WHERE id = ?', (link['id'],))

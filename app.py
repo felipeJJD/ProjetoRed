@@ -17,12 +17,12 @@ except ImportError:
 
 # Configuração do Flask
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Chave secreta para sessões
+app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key')  # Chave secreta para sessões
 
 # Configuração do banco de dados
 app.config['USE_POSTGRES'] = True  # Ativar PostgreSQL no Railway
 app.config['DATABASE'] = os.path.join(os.path.dirname(__file__), 'instance', 'whatsapp_redirect.db')
-app.config['DATABASE_URL'] = 'postgresql://postgres:nsAgxYUGJuIRXTalVIdclsTDecKEsgpc@switchyard.proxy.rlwy.net:24583/railway'
+app.config['DATABASE_URL'] = os.environ.get('DATABASE_URL', 'postgresql://postgres:nsAgxYUGJuIRXTalVIdclsTDecKEsgpc@switchyard.proxy.rlwy.net:24583/railway')
 
 # Garantir que o diretório instance exista
 os.makedirs(os.path.dirname(app.config['DATABASE']), exist_ok=True)
@@ -90,6 +90,13 @@ def execute_query(conn, query, params=None, fetchall=False, fetchone=False):
 def init_db():
     """Inicializa o banco de dados (compatível com SQLite e PostgreSQL)"""
     with get_db_connection() as conn:
+        # No PostgreSQL do Railway, usamos um script SQL separado para inicializar
+        # Isso evita problemas com diferenças de sintaxe entre SQLite e PostgreSQL
+        if app.config.get('USE_POSTGRES', False) and POSTGRES_AVAILABLE:
+            print("Usando PostgreSQL. As tabelas devem ser criadas usando o script SQL no Railway.")
+            return
+        
+        # O código a seguir é apenas para SQLite
         # Criar tabela de usuários
         execute_query(conn, '''
             CREATE TABLE IF NOT EXISTS users (
@@ -130,25 +137,24 @@ def init_db():
         ''')
         
         # Verificar se a coluna is_active existe na tabela whatsapp_numbers
-        if not app.config.get('USE_POSTGRES', False):  # Apenas para SQLite
-            result = execute_query(conn, "PRAGMA table_info(whatsapp_numbers)", fetchall=True)
-            columns = [col['name'] for col in result]
-            
-            # Adicionar coluna is_active se não existir
-            if 'is_active' not in columns:
-                try:
-                    execute_query(conn, 'ALTER TABLE whatsapp_numbers ADD COLUMN is_active INTEGER DEFAULT 1')
-                    print("Coluna is_active adicionada à tabela whatsapp_numbers")
-                except:
-                    print("Erro ao adicionar coluna is_active")
-            
-            # Adicionar coluna last_used se não existir
-            if 'last_used' not in columns:
-                try:
-                    execute_query(conn, 'ALTER TABLE whatsapp_numbers ADD COLUMN last_used TIMESTAMP')
-                    print("Coluna last_used adicionada à tabela whatsapp_numbers")
-                except:
-                    print("Erro ao adicionar coluna last_used")
+        result = execute_query(conn, "PRAGMA table_info(whatsapp_numbers)", fetchall=True)
+        columns = [col['name'] for col in result]
+        
+        # Adicionar coluna is_active se não existir
+        if 'is_active' not in columns:
+            try:
+                execute_query(conn, 'ALTER TABLE whatsapp_numbers ADD COLUMN is_active INTEGER DEFAULT 1')
+                print("Coluna is_active adicionada à tabela whatsapp_numbers")
+            except:
+                print("Erro ao adicionar coluna is_active")
+        
+        # Adicionar coluna last_used se não existir
+        if 'last_used' not in columns:
+            try:
+                execute_query(conn, 'ALTER TABLE whatsapp_numbers ADD COLUMN last_used TIMESTAMP')
+                print("Coluna last_used adicionada à tabela whatsapp_numbers")
+            except:
+                print("Erro ao adicionar coluna last_used")
         
         # Criar tabela de links personalizados com referência ao usuário
         execute_query(conn, '''
@@ -179,24 +185,79 @@ def init_db():
         ''')
         
         # Verificar se as colunas necessárias existem
-        if not app.config.get('USE_POSTGRES', False):  # Apenas para SQLite
-            result = execute_query(conn, "PRAGMA table_info(custom_links)", fetchall=True)
-            columns = [col['name'] for col in result]
-            
-            # Adicionar coluna click_count se não existir
-            if 'click_count' not in columns:
-                try:
-                    execute_query(conn, 'ALTER TABLE custom_links ADD COLUMN click_count INTEGER DEFAULT 0')
-                except:
-                    pass  # Ignorar erro se a coluna já existir ou em caso de outra falha
+        result = execute_query(conn, "PRAGMA table_info(custom_links)", fetchall=True)
+        columns = [col['name'] for col in result]
         
-        if app.config.get('USE_POSTGRES', False):
-            conn.commit()
+        # Adicionar coluna click_count se não existir
+        if 'click_count' not in columns:
+            try:
+                execute_query(conn, 'ALTER TABLE custom_links ADD COLUMN click_count INTEGER DEFAULT 0')
+            except:
+                pass  # Ignorar erro se a coluna já existir ou em caso de outra falha
     
     print("Banco de dados inicializado com sucesso.")
 
-# Inicializar o banco de dados
-init_db()
+# Inicializar o banco de dados usando uma função chamada diretamente
+# em vez do decorator obsoleto @app.before_first_request
+def fix_data_inconsistencies(conn):
+    """
+    Corrige problemas de consistência no banco de dados, como registros
+    de redirecionamento que apontam para números que não existem mais.
+    """
+    print("Verificando e corrigindo inconsistências de dados...")
+    
+    # 1. Identificar registros de redirecionamento que apontam para números inexistentes
+    orphan_query = '''
+        SELECT rl.id, rl.number_id, cl.user_id
+        FROM redirect_logs rl
+        JOIN custom_links cl ON rl.link_id = cl.id
+        LEFT JOIN whatsapp_numbers wn ON rl.number_id = wn.id
+        WHERE wn.id IS NULL
+    '''
+    
+    orphans = conn.execute(orphan_query).fetchall()
+    
+    if orphans:
+        print(f"Encontrados {len(orphans)} registros de redirecionamento para números inexistentes.")
+        
+        # Para cada registro órfão, tentar encontrar um número válido do mesmo usuário
+        for orphan in orphans:
+            user_id = orphan['user_id']
+            
+            # Buscar um número válido deste usuário
+            valid_number = conn.execute('''
+                SELECT id FROM whatsapp_numbers 
+                WHERE user_id = ? 
+                LIMIT 1
+            ''', (user_id,)).fetchone()
+            
+            if valid_number:
+                # Atualizar o registro para apontar para um número válido
+                conn.execute('''
+                    UPDATE redirect_logs
+                    SET number_id = ?
+                    WHERE id = ?
+                ''', (valid_number['id'], orphan['id']))
+                print(f"Corrigido: redirect_log ID {orphan['id']} agora aponta para number_id {valid_number['id']}")
+            else:
+                # Se não houver número válido, remover o registro de log
+                conn.execute('DELETE FROM redirect_logs WHERE id = ?', (orphan['id'],))
+                print(f"Removido: redirect_log ID {orphan['id']} (sem número válido disponível)")
+        
+        conn.commit()
+        print(f"Corrigidos {len(orphans)} registros de redirecionamento.")
+    else:
+        print("Nenhuma inconsistência encontrada nos registros de redirecionamento.")
+
+# Inicialização do banco de dados
+with app.app_context():
+    try:
+        init_db()
+        with get_db_connection() as conn:
+            fix_data_inconsistencies(conn)
+    except Exception as e:
+        print(f"Erro durante inicialização: {e}")
+        print("Continuando mesmo com erro - o Railway deve ter criado as tabelas externamente")
 
 # Função para verificar se o usuário está logado
 def login_required(f):
@@ -214,6 +275,11 @@ def login_required(f):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/health')
+def health():
+    """Rota de healthcheck para o Railway"""
+    return jsonify({"status": "healthy"})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -1244,89 +1310,12 @@ def get_map_stats():
             # Se não temos cliques para os filtros, retornar lista vazia
             return jsonify({"locations": []})
 
-# Adicionar função para corrigir registros inconsistentes
-def fix_data_inconsistencies(conn):
-    """
-    Corrige problemas de consistência no banco de dados, como registros
-    de redirecionamento que apontam para números que não existem mais.
-    """
-    print("Verificando e corrigindo inconsistências de dados...")
-    
-    # 1. Identificar registros de redirecionamento que apontam para números inexistentes
-    orphan_query = '''
-        SELECT rl.id, rl.number_id, cl.user_id
-        FROM redirect_logs rl
-        JOIN custom_links cl ON rl.link_id = cl.id
-        LEFT JOIN whatsapp_numbers wn ON rl.number_id = wn.id
-        WHERE wn.id IS NULL
-    '''
-    
-    orphans = conn.execute(orphan_query).fetchall()
-    
-    if orphans:
-        print(f"Encontrados {len(orphans)} registros de redirecionamento para números inexistentes.")
-        
-        # Para cada registro órfão, tentar encontrar um número válido do mesmo usuário
-        for orphan in orphans:
-            user_id = orphan['user_id']
-            
-            # Buscar um número válido deste usuário
-            valid_number = conn.execute('''
-                SELECT id FROM whatsapp_numbers 
-                WHERE user_id = ? 
-                LIMIT 1
-            ''', (user_id,)).fetchone()
-            
-            if valid_number:
-                # Atualizar o registro para apontar para um número válido
-                conn.execute('''
-                    UPDATE redirect_logs
-                    SET number_id = ?
-                    WHERE id = ?
-                ''', (valid_number['id'], orphan['id']))
-                print(f"Corrigido: redirect_log ID {orphan['id']} agora aponta para number_id {valid_number['id']}")
-            else:
-                # Se não houver número válido, remover o registro de log
-                conn.execute('DELETE FROM redirect_logs WHERE id = ?', (orphan['id'],))
-                print(f"Removido: redirect_log ID {orphan['id']} (sem número válido disponível)")
-        
-        conn.commit()
-        print(f"Corrigidos {len(orphans)} registros de redirecionamento.")
-    else:
-        print("Nenhuma inconsistência encontrada nos registros de redirecionamento.")
-
-# Adicionar chamada para corrigir inconsistências durante a inicialização do app
-@app.before_first_request
-def before_first_request():
-    """Executado antes da primeira requisição ao aplicativo"""
-    with get_db_connection() as conn:
-        fix_data_inconsistencies(conn)
-        
-        # Também podemos verificar outras inconsistências aqui
-        print("Verificando consistência geral dos dados...")
-        # Verificar se existe algum link sem usuário válido
-        orphan_links = conn.execute('''
-            SELECT cl.id, cl.link_name
-            FROM custom_links cl
-            LEFT JOIN users u ON cl.user_id = u.id
-            WHERE u.id IS NULL
-        ''').fetchall()
-        
-        if orphan_links:
-            print(f"Encontrados {len(orphan_links)} links sem usuário válido.")
-            # Se necessário implementar correção aqui
-
 # Configuração para permitir acesso a recursos estáticos
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
 
 if __name__ == '__main__':
-    # Inicializar verificação de consistência de dados
-    with app.app_context():
-        with get_db_connection() as conn:
-            fix_data_inconsistencies(conn)
-    
     # Executar a aplicação com configurações corretas para acesso externo
     import os
     port = int(os.environ.get('PORT', 3333))

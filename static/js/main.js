@@ -1,3 +1,36 @@
+// Código de proteção contra interferência de extensões
+// Este código protege contra o erro "Cannot read properties of undefined (reading 'toLowerCase')"
+// que ocorre devido a alguma extensão do Chrome, possivelmente a extensão pdbbgdjfhcnlemnihdbcolnoocfdekje
+(function protectFromExtensions() {
+    try {
+        // Proteção para toString e toLowerCase em valores indefinidos/nulos
+        const originalToString = Object.prototype.toString;
+        const originalToLowerCase = String.prototype.toLowerCase;
+        
+        // Proteção para toString
+        Object.prototype.toString = function() {
+            if (this === undefined || this === null) {
+                console.warn('Tentativa de chamar toString em valor undefined/null');
+                return '';
+            }
+            return originalToString.call(this);
+        };
+        
+        // Proteção para toLowerCase
+        String.prototype.toLowerCase = function() {
+            if (this === undefined || this === null) {
+                console.warn('Tentativa de chamar toLowerCase em valor undefined/null');
+                return '';
+            }
+            return originalToLowerCase.call(this);
+        };
+        
+        console.log('Proteções contra interferência de extensões aplicadas');
+    } catch(e) {
+        console.error('Erro ao aplicar proteções:', e);
+    }
+})();
+
 // Função para exibir notificações
 function showToast(message, type = 'success') {
     // Criar elemento toast
@@ -213,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Recarregar a página para atualizar a lista
                     window.location.reload();
                 } else {
-                    showToast(data.message, 'danger');
+                    showToast(data.error || 'Erro ao adicionar link', 'danger');
                 }
             })
             .catch(error => {
@@ -343,7 +376,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Recarregar a página para atualizar a lista
                     window.location.reload();
                 } else {
-                    showToast(data.message, 'danger');
+                    showToast(data.error || data.message || 'Erro ao atualizar o link', 'danger');
                 }
             })
             .catch(error => {

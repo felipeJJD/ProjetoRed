@@ -263,9 +263,16 @@ def init_db():
         
         # Garantir que cada usuário tenha pelo menos um link padrão
         for user_id in [1, 2]:  # pedro e felipe
+            # Remover qualquer link whatsapp existente que não use o formato de ID do usuário (migração)
             conn.execute('''
-                INSERT OR IGNORE INTO custom_links (user_id, link_name, custom_message, prefix)
-                VALUES (?, 'whatsapp', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...', 1)
+                DELETE FROM custom_links 
+                WHERE user_id = ? AND link_name = 'whatsapp'
+            ''', (user_id,))
+            
+            # Criar novo link padrão no formato <user_id>/whatsapp
+            conn.execute('''
+                INSERT INTO custom_links (user_id, link_name, custom_message, prefix, is_active)
+                VALUES (?, 'whatsapp', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...', 1, 1)
             ''', (user_id,))
 
 # Inicializar o banco de dados
@@ -531,11 +538,14 @@ def manage_links():
                        (user_id, link_name, custom_message, prefix))
             
             # Retornar também o prefixo para que o frontend possa exibir o link completo
+            # Agora retornamos o ID do usuário para o novo formato de URL
             return jsonify({
                 'success': True, 
                 'message': 'Link adicionado com sucesso',
                 'prefix': prefix,
-                'full_link': f"{prefix}/{link_name}"
+                'user_id': user_id,
+                'full_link': f"{user_id}/{link_name}",
+                'legacy_link': f"{prefix}/{link_name}"  # Formato antigo para compatibilidade
             })
         
         # Se for GET, retornar todos os links
@@ -594,23 +604,31 @@ reserved_routes = [
 # Rota para redirecionamento direto ao WhatsApp (mantém o prefixo redirect por compatibilidade)
 @app.route('/redirect/<link_name>')
 def redirect_whatsapp_with_prefix(link_name):
-    return redirect_whatsapp_func(link_name, None)
+    return redirect_whatsapp_func(link_name, None, None)
 
-# Nova rota para redirecionamento com prefixo/nome
+# Nova rota para redirecionamento com ID de usuário/nome
+@app.route('/<int:user_id>/<link_name>')
+def redirect_whatsapp_with_user_id(user_id, link_name):
+    return redirect_whatsapp_func(link_name, None, user_id)
+
+# Rota para compatibilidade com o sistema antigo usando prefixo
 @app.route('/<int:prefix>/<link_name>')
 def redirect_whatsapp_with_counter(prefix, link_name):
-    return redirect_whatsapp_func(link_name, prefix)
+    # Se o prefixo for muito alto, é mais provável que seja um ID de usuário
+    if prefix > 100:  # Assumindo que prefixos são geralmente baixos
+        return redirect_whatsapp_func(link_name, None, prefix)
+    return redirect_whatsapp_func(link_name, prefix, None)
 
-# Rota simplificada para compatibilidade com links antigos (tenta usar o prefixo 1)
+# Rota simplificada para compatibilidade com links antigos (tenta usar o link padrão)
 @app.route('/<link_name>')
 def redirect_whatsapp(link_name):
     # Verificar se o link_name não é uma rota reservada
     if link_name in reserved_routes:
         abort(404)  # Retorna 404 Not Found para evitar conflito com rotas existentes
-    return redirect_whatsapp_func(link_name, 1)  # Tentar com prefixo 1 (padrão)
+    return redirect_whatsapp_func(link_name, 1, None)  # Tentar com prefixo 1 (padrão)
 
 # Função que contém a lógica de redirecionamento
-def redirect_whatsapp_func(link_name, prefix=None):
+def redirect_whatsapp_func(link_name, prefix=None, user_id=None):
     redirect_start_time = datetime.now()
     
     # Melhorar a captura do IP para considerar proxies
@@ -629,7 +647,7 @@ def redirect_whatsapp_func(link_name, prefix=None):
         client_ip = '0.0.0.0'  # IP padrão quando não conseguimos detectar
     
     # Logar o IP capturado para debug
-    print(f"IP capturado para redirecionamento: {client_ip}, Link: {link_name}, Prefix: {prefix}")
+    print(f"IP capturado para redirecionamento: {client_ip}, Link: {link_name}, Prefix: {prefix}, User ID: {user_id}")
     
     user_agent = request.headers.get('User-Agent', '')
     
@@ -644,8 +662,12 @@ def redirect_whatsapp_func(link_name, prefix=None):
             '''
             params = [link_name]
             
-            # Se um prefixo foi especificado, adicionar à consulta
-            if prefix is not None:
+            # Priorizar user_id se fornecido
+            if user_id is not None:
+                query += " AND cl.user_id = ?"
+                params.append(user_id)
+            # Se não houver user_id mas houver prefixo, usar o prefixo
+            elif prefix is not None:
                 query += " AND cl.prefix = ?"
                 params.append(prefix)
             
@@ -653,8 +675,20 @@ def redirect_whatsapp_func(link_name, prefix=None):
             link = conn.execute(query, params).fetchone()
             
             if not link:
-                # Link não encontrado ou inativo
-                return render_template('index.html', error='Link não encontrado ou inativo')
+                # Se não encontrou com os parâmetros específicos, tentar encontrar qualquer link ativo com este nome
+                if user_id is not None or prefix is not None:
+                    fallback_query = '''
+                        SELECT cl.*, u.id as owner_id 
+                        FROM custom_links cl
+                        JOIN users u ON cl.user_id = u.id
+                        WHERE cl.link_name = ? AND cl.is_active = 1
+                        LIMIT 1
+                    '''
+                    link = conn.execute(fallback_query, [link_name]).fetchone()
+                
+                # Se ainda não encontrou, retornar erro
+                if not link:
+                    return render_template('index.html', error='Link não encontrado ou inativo')
             
             # Incrementar contador de cliques
             conn.execute('UPDATE custom_links SET click_count = click_count + 1 WHERE id = ?', (link['id'],))
@@ -1759,10 +1793,11 @@ def admin_usuarios():
                         new_user = conn.execute('SELECT id FROM users WHERE username = ?', 
                                              (username,)).fetchone()
                         if new_user:
+                            # Inserir link padrão usando o ID do usuário
                             conn.execute('''
                                 INSERT INTO custom_links (user_id, link_name, custom_message, is_active, prefix)
-                                VALUES (?, ?, ?, ?, ?)
-                            ''', (new_user['id'], 'whatsapp', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...', 1, 1))
+                                VALUES (?, 'whatsapp', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...', 1, 1)
+                            ''', (new_user['id'],))
                             
                         success_message = f"Usuário '{username}' criado com sucesso"
                     except Exception as e:

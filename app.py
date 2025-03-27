@@ -1355,75 +1355,151 @@ def get_map_stats():
     end_date = request.args.get('end_date')
     link_id = request.args.get('link_id', 'all')
     
-    # Obter condições e parâmetros de forma padronizada
-    link_condition, date_condition, params = get_standard_filter_conditions(user_id, link_id, start_date, end_date)
+    try:
+        # Validar se as datas são válidas
+        today = datetime.now().date()
+        
+        # Converter datas para objetos date para validação
+        if start_date:
+            try:
+                start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+                # Se a data inicial for futura, limitar à data atual
+                if start_date_obj > today:
+                    start_date = today.strftime('%Y-%m-%d')
+                    print(f"Data inicial no futuro ajustada para hoje: {start_date}")
+            except ValueError:
+                # Data inválida, ignorar filtro
+                start_date = None
+                print("Data inicial inválida ignorada")
+        
+        if end_date:
+            try:
+                end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+                # Se a data final for futura, limitar à data atual
+                if end_date_obj > today:
+                    end_date = today.strftime('%Y-%m-%d')
+                    print(f"Data final no futuro ajustada para hoje: {end_date}")
+            except ValueError:
+                # Data inválida, ignorar filtro
+                end_date = None
+                print("Data final inválida ignorada")
     
-    print(f"Query de mapa - user_id: {user_id}, link_id: {link_id}, start_date: {start_date}, end_date: {end_date}")
-    print(f"Parâmetros para mapa: {params}")
-    
-    with get_db_connection() as conn:
-        # Obter os redirecionamentos com IPs para o período filtrado
-        query = f'''
-            SELECT rl.ip_address, COUNT(*) as click_count
-            FROM redirect_logs rl
-            JOIN custom_links cl ON rl.link_id = cl.id
-            WHERE {link_condition} {date_condition}
-            GROUP BY rl.ip_address
-        '''
+        # Obter condições e parâmetros de forma padronizada
+        link_condition, date_condition, params = get_standard_filter_conditions(user_id, link_id, start_date, end_date)
         
-        redirects = conn.execute(query, params).fetchall()
-        total_clicks = sum(redirect['click_count'] for redirect in redirects)
-        print(f"Total de cliques no mapa: {total_clicks}")
+        print(f"Query de mapa - user_id: {user_id}, link_id: {link_id}, start_date: {start_date}, end_date: {end_date}")
+        print(f"Parâmetros para mapa: {params}")
         
-        # Verificar consistência de dados
-        validate_data_consistency(conn, user_id, link_id, start_date, end_date)
-        
-        if total_clicks > 0:
-            # Lista para armazenar todos os locais com suas contagens
-            locations = []
+        with get_db_connection() as conn:
+            # Obter os redirecionamentos com IPs para o período filtrado
+            query = f'''
+                SELECT rl.ip_address, COUNT(*) as click_count
+                FROM redirect_logs rl
+                JOIN custom_links cl ON rl.link_id = cl.id
+                WHERE {link_condition} {date_condition}
+                GROUP BY rl.ip_address
+            '''
             
-            # Cache para evitar consultas repetidas de geolocalização para o mesmo IP
-            location_cache = {}
+            redirects = conn.execute(query, params).fetchall()
+            total_clicks = sum(redirect['click_count'] for redirect in redirects)
+            print(f"Total de cliques no mapa: {total_clicks}")
             
-            for redirect in redirects:
-                ip = redirect['ip_address']
-                count = redirect['click_count']
-                
-                # Usar cache para evitar requisições repetidas
-                if ip not in location_cache:
-                    location_data = get_location_from_ip(ip)
-                    location_cache[ip] = location_data
-                else:
-                    location_data = location_cache[ip]
-                
-                # Criar um nome de local mais informativo
-                location_name = f"{location_data['city']}, {location_data['region']}, {location_data['country']}"
-                
-                # Verificar se já existe um local com as mesmas coordenadas
-                existing_location = next(
-                    (loc for loc in locations if 
-                     loc['lat'] == location_data['latitude'] and 
-                     loc['lng'] == location_data['longitude']),
-                    None
-                )
-                
-                if existing_location:
-                    # Somar os cliques ao local existente
-                    existing_location['count'] += count
-                else:
-                    # Adicionar novo local
-                    locations.append({
-                        'lat': location_data['latitude'],
-                        'lng': location_data['longitude'],
-                        'name': location_name,
-                        'count': count
+            # Verificar consistência de dados
+            try:
+                validate_data_consistency(conn, user_id, link_id, start_date, end_date)
+            except Exception as e:
+                print(f"Erro na validação de consistência: {str(e)}")
+            
+            if total_clicks > 0:
+                try:
+                    # Lista para armazenar todos os locais com suas contagens
+                    locations = []
+                    
+                    # Cache para evitar consultas repetidas de geolocalização para o mesmo IP
+                    location_cache = {}
+                    
+                    # Contador de erros para limitar tentativas de geolocalização
+                    error_count = 0
+                    max_errors = 5
+                    
+                    for redirect in redirects:
+                        ip = redirect['ip_address']
+                        count = redirect['click_count']
+                        
+                        # Usar cache para evitar requisições repetidas
+                        if ip not in location_cache:
+                            try:
+                                # Se tivermos muitos erros, usar posição padrão para o resto
+                                if error_count >= max_errors:
+                                    location_data = {
+                                        'city': 'Curitiba',
+                                        'latitude': -25.4372,
+                                        'longitude': -49.2699,
+                                        'country': 'Brasil',
+                                        'region': 'Paraná'
+                                    }
+                                else:
+                                    location_data = get_location_from_ip(ip)
+                                
+                                location_cache[ip] = location_data
+                            except Exception as e:
+                                error_count += 1
+                                print(f"Erro ao obter localização para IP {ip}: {str(e)}")
+                                # Em caso de erro, usar localização padrão
+                                location_data = {
+                                    'city': 'Curitiba',
+                                    'latitude': -25.4372,
+                                    'longitude': -49.2699,
+                                    'country': 'Brasil',
+                                    'region': 'Paraná'
+                                }
+                                location_cache[ip] = location_data
+                        else:
+                            location_data = location_cache[ip]
+                        
+                        # Criar um nome de local mais informativo
+                        location_name = f"{location_data['city']}, {location_data['region']}, {location_data['country']}"
+                        
+                        # Verificar se já existe um local com as mesmas coordenadas
+                        existing_location = next(
+                            (loc for loc in locations if 
+                             loc['lat'] == location_data['latitude'] and 
+                             loc['lng'] == location_data['longitude']),
+                            None
+                        )
+                        
+                        if existing_location:
+                            # Somar os cliques ao local existente
+                            existing_location['count'] += count
+                        else:
+                            # Adicionar novo local
+                            locations.append({
+                                'lat': location_data['latitude'],
+                                'lng': location_data['longitude'],
+                                'name': location_name,
+                                'count': count
+                            })
+                    
+                    print(f"Localizações processadas: {len(locations)}")
+                    return jsonify({"locations": locations})
+                except Exception as e:
+                    print(f"Erro ao processar dados do mapa: {str(e)}")
+                    # Em caso de erro, retornar um marcador único em Curitiba
+                    return jsonify({
+                        "locations": [{
+                            "lat": -25.4372,
+                            "lng": -49.2699,
+                            "name": "Curitiba, Paraná, Brasil (Localização padrão)",
+                            "count": total_clicks
+                        }]
                     })
-            
-            print(f"Localizações processadas: {len(locations)}")
-            return jsonify({"locations": locations})
-        else:
-            # Se não temos cliques para os filtros, retornar lista vazia
-            return jsonify({"locations": []})
+            else:
+                # Se não temos cliques para os filtros, retornar lista vazia
+                return jsonify({"locations": []})
+    except Exception as e:
+        print(f"Erro geral na API de mapa: {str(e)}")
+        # Em caso de erro geral, retornar uma resposta vazia mas válida
+        return jsonify({"locations": [], "error": "Ocorreu um erro ao processar os dados do mapa"})
 
 # Adicionar função para corrigir registros inconsistentes
 def fix_data_inconsistencies(conn):

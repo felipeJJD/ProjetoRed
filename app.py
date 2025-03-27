@@ -40,7 +40,7 @@ def init_db():
         
         # Verificar se existem planos e criar os padrões se não houver
         if not conn.execute('SELECT * FROM plans').fetchone():
-            # Criar planos padrão (básico, intermediário, avançado)
+            # Criar planos padrão (básico, intermediário, avançado, ilimitado)
             conn.execute('''
                 INSERT INTO plans (name, max_numbers, max_links, description)
                 VALUES (?, ?, ?, ?)
@@ -55,6 +55,11 @@ def init_db():
                 INSERT INTO plans (name, max_numbers, max_links, description)
                 VALUES (?, ?, ?, ?)
             ''', ('advanced', 15, -1, 'Plano Avançado')) # -1 indica links ilimitados
+            
+            conn.execute('''
+                INSERT INTO plans (name, max_numbers, max_links, description)
+                VALUES (?, ?, ?, ?)
+            ''', ('unlimited', -1, -1, 'Plano Ilimitado')) # -1 para números e links ilimitados
         
         # Criar tabela de usuários
         conn.execute('''
@@ -1763,6 +1768,58 @@ def admin_usuarios():
     
     return render_template('admin_usuarios.html', users=user_stats, plans=plans, 
                           error_message=error_message, success_message=success_message)
+
+# Rota para excluir usuário
+@app.route('/api/usuarios/<int:user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    # Verificar se o usuário atual é o Felipe
+    if session.get('username') != 'felipe':
+        return jsonify({'success': False, 'error': 'Acesso negado. Apenas o administrador pode excluir usuários.'}), 403
+    
+    # Verificar se o usuário a ser excluído não é um dos administradores principais
+    if user_id in [1, 2]:  # IDs de pedro e felipe
+        return jsonify({'success': False, 'error': 'Não é possível excluir usuários administradores.'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            # Verificar se o usuário existe
+            user = conn.execute('SELECT username FROM users WHERE id = ?', (user_id,)).fetchone()
+            if not user:
+                return jsonify({'success': False, 'error': 'Usuário não encontrado.'}), 404
+            
+            # Iniciar transação para garantir que todas as operações sejam realizadas ou nenhuma
+            conn.execute('BEGIN TRANSACTION')
+            
+            # 1. Excluir registros de redirecionamento associados aos links do usuário
+            conn.execute('''
+                DELETE FROM redirect_logs
+                WHERE link_id IN (
+                    SELECT id FROM custom_links WHERE user_id = ?
+                )
+            ''', (user_id,))
+            
+            # 2. Excluir todos os links do usuário
+            conn.execute('DELETE FROM custom_links WHERE user_id = ?', (user_id,))
+            
+            # 3. Excluir todos os números do usuário
+            conn.execute('DELETE FROM whatsapp_numbers WHERE user_id = ?', (user_id,))
+            
+            # 4. Por fim, excluir o usuário
+            conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+            
+            # Confirmar transação
+            conn.execute('COMMIT')
+            
+            return jsonify({'success': True, 'message': f'Usuário {user["username"]} excluído com sucesso.'})
+            
+    except Exception as e:
+        # Em caso de erro, fazer rollback e retornar erro
+        try:
+            conn.execute('ROLLBACK')
+        except:
+            pass
+        return jsonify({'success': False, 'error': f'Erro ao excluir usuário: {str(e)}'}), 500
 
 if __name__ == '__main__':
     # Inicializar verificação de consistência de dados

@@ -118,6 +118,13 @@
         .badge-advanced {
             background-color: #28a745;
         }
+        .badge-unlimited {
+            background-color: #dc3545;
+        }
+        .unlimited-icon {
+            font-size: 1.2rem;
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
@@ -284,6 +291,7 @@
                                         <th>Chips</th>
                                         <th>Redirecionamentos</th>
                                         <th>Data de Criação</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -294,7 +302,7 @@
                                             <td>{{ user.username }}</td>
                                             <td>{{ user.fullname }}</td>
                                             <td>
-                                                <span class="badge bg-{% if user.plan_name == 'basic' %}secondary{% elif user.plan_name == 'intermediary' %}info{% else %}success{% endif %} badge-plan">
+                                                <span class="badge bg-{% if user.plan_name == 'basic' %}secondary{% elif user.plan_name == 'intermediary' %}info{% elif user.plan_name == 'unlimited' %}danger{% else %}success{% endif %} badge-plan">
                                                     {{ user.plan_name }}
                                                 </span>
                                             </td>
@@ -317,16 +325,31 @@
                                                 {% if user.numbers_limit_reached %}
                                                 <small class="limit-warning"><i class="bi bi-exclamation-triangle"></i> Limite</small>
                                                 {% else %}
-                                                <small class="limit-ok"><i class="bi bi-check"></i> (max: {{ user.max_numbers }})</small>
+                                                <small class="limit-ok">
+                                                    {% if user.max_numbers < 0 %}
+                                                    <i class="bi bi-infinity"></i>
+                                                    {% else %}
+                                                    <i class="bi bi-check"></i> (max: {{ user.max_numbers }})
+                                                    {% endif %}
+                                                </small>
                                                 {% endif %}
                                             </td>
                                             <td>{{ user.redirects_count }}</td>
                                             <td>{{ user.created_at }}</td>
+                                            <td>
+                                                {% if user.id not in [1, 2] %}
+                                                <button class="btn btn-sm btn-danger delete-user" data-id="{{ user.id }}" data-username="{{ user.username }}">
+                                                    <i class="bi bi-trash"></i> Excluir
+                                                </button>
+                                                {% else %}
+                                                <span class="badge bg-secondary">Administrador</span>
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     {% else %}
                                         <tr>
-                                            <td colspan="8" class="text-center">Nenhum usuário cadastrado</td>
+                                            <td colspan="9" class="text-center">Nenhum usuário cadastrado</td>
                                         </tr>
                                     {% endif %}
                                 </tbody>
@@ -335,6 +358,35 @@
                     </div>
                 </div>
             </main>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteUserModalLabel"><i class="bi bi-exclamation-triangle"></i> Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Você está prestes a excluir o usuário <strong id="userToDelete"></strong>.</p>
+                    <p class="text-danger"><strong>Atenção:</strong> Esta ação excluirá permanentemente:</p>
+                    <ul>
+                        <li>A conta do usuário</li>
+                        <li>Todos os links criados pelo usuário</li>
+                        <li>Todos os números (chips) cadastrados</li>
+                        <li>Todos os registros de redirecionamento</li>
+                    </ul>
+                    <p class="fw-bold">Esta ação não pode ser desfeita!</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="confirmDelete">
+                        <i class="bi bi-trash"></i> Confirmar Exclusão
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -374,6 +426,87 @@
             // Evento para quando os radio buttons mudam
             planRadios.forEach(radio => {
                 radio.addEventListener('change', updatePlanSelection);
+            });
+            
+            // Variáveis para exclusão de usuário
+            let userIdToDelete = null;
+            const deleteUserModal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+            const userToDeleteSpan = document.getElementById('userToDelete');
+            const confirmDeleteBtn = document.getElementById('confirmDelete');
+            
+            // Configurar listeners para botões de exclusão
+            document.querySelectorAll('.delete-user').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    userIdToDelete = this.getAttribute('data-id');
+                    const username = this.getAttribute('data-username');
+                    userToDeleteSpan.textContent = username;
+                    deleteUserModal.show();
+                });
+            });
+            
+            // Evento de confirmação de exclusão
+            confirmDeleteBtn.addEventListener('click', function() {
+                if (!userIdToDelete) return;
+                
+                // Mostrar indicador de carregamento
+                confirmDeleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Excluindo...';
+                confirmDeleteBtn.disabled = true;
+                
+                // Fazer requisição para excluir usuário
+                fetch(`/api/usuarios/${userIdToDelete}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    deleteUserModal.hide();
+                    
+                    if (data.success) {
+                        // Mostrar mensagem de sucesso
+                        const alertDiv = document.createElement('div');
+                        alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                        alertDiv.innerHTML = `
+                            <i class="bi bi-check-circle-fill"></i> ${data.message}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                        `;
+                        document.querySelector('main').insertAdjacentElement('afterbegin', alertDiv);
+                        
+                        // Remover linha da tabela
+                        const userRow = document.querySelector(`button[data-id="${userIdToDelete}"]`).closest('tr');
+                        userRow.classList.add('table-danger');
+                        setTimeout(() => {
+                            userRow.remove();
+                        }, 500);
+                    } else {
+                        // Mostrar mensagem de erro
+                        const alertDiv = document.createElement('div');
+                        alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+                        alertDiv.innerHTML = `
+                            <i class="bi bi-exclamation-triangle-fill"></i> ${data.error}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                        `;
+                        document.querySelector('main').insertAdjacentElement('afterbegin', alertDiv);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao excluir usuário:', error);
+                    // Mostrar mensagem de erro
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+                    alertDiv.innerHTML = `
+                        <i class="bi bi-exclamation-triangle-fill"></i> Erro ao excluir usuário. Tente novamente.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                    `;
+                    document.querySelector('main').insertAdjacentElement('afterbegin', alertDiv);
+                })
+                .finally(() => {
+                    // Restaurar botão de confirmação
+                    confirmDeleteBtn.innerHTML = '<i class="bi bi-trash"></i> Confirmar Exclusão';
+                    confirmDeleteBtn.disabled = false;
+                    userIdToDelete = null;
+                });
             });
         });
     </script>

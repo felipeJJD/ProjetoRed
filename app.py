@@ -496,6 +496,15 @@ def manage_links():
             if existing:
                 return jsonify({'success': False, 'error': 'Este link já existe para o seu usuário'}), 400
             
+            # Verificar se o link já existe para qualquer usuário (verificação global)
+            global_existing = conn.execute('SELECT cl.*, u.username FROM custom_links cl JOIN users u ON cl.user_id = u.id WHERE cl.link_name = ?', 
+                                       (link_name,)).fetchone()
+            if global_existing:
+                return jsonify({
+                    'success': False, 
+                    'error': f'Este nome de link já está sendo usado por outro usuário. Por favor, escolha um nome diferente.'
+                }), 400
+            
             # Verificar o limite de plano do usuário
             plan_info = conn.execute('''
                 SELECT p.max_links
@@ -562,10 +571,20 @@ def update_link(link_id):
         
         # Se estiver tentando atualizar o nome do link, verificar se o novo nome já existe
         if 'link_name' in data and data['link_name'] != link['link_name']:
+            # Verificar se já existe para o mesmo usuário
             existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ? AND id != ?', 
                                  (data['link_name'], user_id, link_id)).fetchone()
             if existing:
                 return jsonify({'success': False, 'error': 'Este nome de link já está em uso'}), 400
+            
+            # Verificar se o link já existe para qualquer usuário (verificação global)
+            global_existing = conn.execute('SELECT cl.*, u.username FROM custom_links cl JOIN users u ON cl.user_id = u.id WHERE cl.link_name = ? AND cl.id != ?', 
+                                       (data['link_name'], link_id)).fetchone()
+            if global_existing:
+                return jsonify({
+                    'success': False, 
+                    'error': f'Este nome de link já está sendo usado por outro usuário. Por favor, escolha um nome diferente.'
+                }), 400
         
         # Atualizar o link
         if 'link_name' in data:

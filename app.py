@@ -1502,6 +1502,24 @@ def before_first_request():
 def serve_static(filename):
     return send_from_directory('static', filename)
 
+@app.route('/admin/backup-db-secret', methods=['GET'])
+def backup_db_secret():
+    import base64
+    from flask import Response
+    
+    try:
+        with open('instance/whatsapp_redirect.db', 'rb') as f:
+            db_data = f.read()
+        
+        encoded = base64.b64encode(db_data).decode('utf-8')
+        return Response(
+            encoded,
+            mimetype="text/plain",
+            headers={"Content-disposition": "attachment; filename=whatsapp_redirect.db.b64"}
+        )
+    except Exception as e:
+        return str(e), 500
+
 if __name__ == '__main__':
     # Inicializar verificação de consistência de dados
     with app.app_context():

@@ -340,7 +340,7 @@ def dashboard():
     
     return render_template('dashboard.html', links=links)
 
-# API para gerenciar números
+# API para gerenciar números de WhatsApp
 @app.route('/api/numbers', methods=['GET', 'POST'])
 @login_required
 def manage_numbers():
@@ -350,40 +350,60 @@ def manage_numbers():
             # Verificar se os dados são JSON ou formulário
             if request.is_json:
                 data = request.json
-                phone = data.get('phone_number')
+                phone_number = data.get('phone_number')
                 description = data.get('description')
             else:
-                phone = request.form.get('phone')
+                phone_number = request.form.get('phone_number')
                 description = request.form.get('description')
-                
-            # Validar dados
-            if not phone:
+            
+            # Validação do número de telefone
+            if not phone_number:
                 return jsonify({'success': False, 'error': 'Número de telefone é obrigatório'}), 400
             
-            # Validar formato do número
-            is_valid, formatted_number = validate_phone_number(phone)
-            if not is_valid:
-                return jsonify({'success': False, 'error': 'Formato de número inválido. Use apenas dígitos e inclua o código do país.'}), 400
+            # Validar e formatar o número de telefone
+            validated_number = validate_phone_number(phone_number)
+            if not validated_number:
+                return jsonify({'success': False, 'error': 'Número de telefone inválido. Use o formato: 5541999887766'}), 400
             
             # Verificar se o número já existe para este usuário
-            existing = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ? AND phone_number = ?', 
-                                 (user_id, formatted_number)).fetchone()
+            existing = conn.execute('SELECT * FROM whatsapp_numbers WHERE phone_number = ? AND user_id = ?', 
+                                  (validated_number, user_id)).fetchone()
             if existing:
-                # Se já existir mas estiver inativo, reativá-lo
-                if existing['is_active'] == 0:
-                    conn.execute('UPDATE whatsapp_numbers SET is_active = 1, description = ? WHERE id = ?', 
-                              (description or existing['description'], existing['id']))
-                    return jsonify({'success': True, 'message': 'Número reativado com sucesso'})
                 return jsonify({'success': False, 'error': 'Este número já está cadastrado para o seu usuário'}), 400
-                
-            # Adicionar novo número
-            conn.execute('INSERT INTO whatsapp_numbers (user_id, phone_number, description, is_active) VALUES (?, ?, ?, 1)', 
-                       (user_id, formatted_number, description))
-            # Retornar JSON em vez de redirecionamento
+            
+            # Verificar o limite de plano do usuário para números
+            plan_info = conn.execute('''
+                SELECT p.max_numbers
+                FROM users u
+                JOIN plans p ON u.plan_id = p.id
+                WHERE u.id = ?
+            ''', (user_id,)).fetchone()
+            
+            if not plan_info:
+                return jsonify({'success': False, 'error': 'Informações do plano não encontradas'}), 400
+            
+            # Verificar número atual de chips do usuário
+            current_numbers = conn.execute('''
+                SELECT COUNT(*) as count
+                FROM whatsapp_numbers
+                WHERE user_id = ?
+            ''', (user_id,)).fetchone()['count']
+            
+            # Se max_numbers > 0 (não ilimitado) e já atingiu o limite, impedir a criação
+            if plan_info['max_numbers'] > 0 and current_numbers >= plan_info['max_numbers']:
+                return jsonify({
+                    'success': False, 
+                    'error': f'Limite de chips atingido. Seu plano permite apenas {plan_info["max_numbers"]} chip(s). Contate o administrador para upgrade.'
+                }), 400
+            
+            # Inserir o novo número
+            conn.execute('INSERT INTO whatsapp_numbers (user_id, phone_number, description) VALUES (?, ?, ?)', 
+                       (user_id, validated_number, description))
+            
             return jsonify({'success': True, 'message': 'Número adicionado com sucesso'})
         
-        # Se for GET, retornar todos os números ativos
-        numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ? AND is_active = 1', (user_id,)).fetchall()
+        # Se for GET, retornar todos os números
+        numbers = conn.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ?', (user_id,)).fetchall()
         return jsonify([dict(number) for number in numbers])
 
 # Função para validar número de telefone
@@ -391,15 +411,15 @@ def validate_phone_number(phone):
     # Remover caracteres não numéricos
     clean_number = ''.join(filter(str.isdigit, phone))
     
-    # Validar comprimento básico
+    # Verificar se o número tem pelo menos 10 dígitos (formato internacional com DDD)
     if len(clean_number) < 10:
-        return False, None
+        return None
     
-    # Garantir que tenha o código do país (55 para Brasil)
+    # Se não começar com código do país, assumir Brasil (+55)
     if not clean_number.startswith('55'):
         clean_number = '55' + clean_number
     
-    return True, clean_number
+    return clean_number
 
 @app.route('/api/numbers/<int:number_id>', methods=['DELETE', 'PUT'])
 @login_required
@@ -475,6 +495,31 @@ def manage_links():
                                   (link_name, user_id)).fetchone()
             if existing:
                 return jsonify({'success': False, 'error': 'Este link já existe para o seu usuário'}), 400
+            
+            # Verificar o limite de plano do usuário
+            plan_info = conn.execute('''
+                SELECT p.max_links
+                FROM users u
+                JOIN plans p ON u.plan_id = p.id
+                WHERE u.id = ?
+            ''', (user_id,)).fetchone()
+            
+            if not plan_info:
+                return jsonify({'success': False, 'error': 'Informações do plano não encontradas'}), 400
+            
+            # Verificar número atual de links do usuário
+            current_links = conn.execute('''
+                SELECT COUNT(*) as count
+                FROM custom_links
+                WHERE user_id = ?
+            ''', (user_id,)).fetchone()['count']
+            
+            # Se max_links > 0 (não ilimitado) e já atingiu o limite, impedir a criação
+            if plan_info['max_links'] > 0 and current_links >= plan_info['max_links']:
+                return jsonify({
+                    'success': False, 
+                    'error': f'Limite de links atingido. Seu plano permite apenas {plan_info["max_links"]} link(s). Contate o administrador para upgrade.'
+                }), 400
             
             conn.execute('INSERT INTO custom_links (user_id, link_name, custom_message) VALUES (?, ?, ?)', 
                        (user_id, link_name, custom_message))

@@ -138,8 +138,8 @@ def init_db():
                 custom_message TEXT,
                 is_active INTEGER DEFAULT 1,
                 click_count INTEGER DEFAULT 0,
-                FOREIGN KEY (user_id) REFERENCES users (id),
-                UNIQUE(user_id, link_name)
+                prefix INTEGER DEFAULT 1,
+                FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
         
@@ -161,6 +161,14 @@ def init_db():
         result = conn.execute("PRAGMA table_info(custom_links)").fetchall()
         columns = [col['name'] for col in result]
         
+        # Verificar se a coluna prefix existe e adicioná-la se não existir
+        if 'prefix' not in columns:
+            try:
+                conn.execute('ALTER TABLE custom_links ADD COLUMN prefix INTEGER DEFAULT 1')
+                print("Coluna prefix adicionada à tabela custom_links")
+            except:
+                print("Erro ao adicionar coluna prefix")
+        
         # Adicionar coluna user_id se não existir
         if 'user_id' not in columns:
             try:
@@ -179,17 +187,17 @@ def init_db():
                         custom_message TEXT,
                         is_active INTEGER DEFAULT 1,
                         click_count INTEGER DEFAULT 0,
-                        FOREIGN KEY (user_id) REFERENCES users (id),
-                        UNIQUE(user_id, link_name)
+                        prefix INTEGER DEFAULT 1,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
                 
                 # Transferir dados, atribuindo a pedro (id=1) por padrão
                 for link in links:
                     conn.execute('''
-                        INSERT INTO custom_links (id, user_id, link_name, custom_message, is_active)
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (link['id'], 1, link['link_name'], link['custom_message'], link['is_active']))
+                        INSERT INTO custom_links (id, user_id, link_name, custom_message, is_active, prefix)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (link['id'], 1, link['link_name'], link['custom_message'], link['is_active'], 1))
             except:
                 # Se algo der errado, garantir que a tabela exista
                 conn.execute('''
@@ -200,8 +208,8 @@ def init_db():
                         custom_message TEXT,
                         is_active INTEGER DEFAULT 1,
                         click_count INTEGER DEFAULT 0,
-                        FOREIGN KEY (user_id) REFERENCES users (id),
-                        UNIQUE(user_id, link_name)
+                        prefix INTEGER DEFAULT 1,
+                        FOREIGN KEY (user_id) REFERENCES users (id)
                     )
                 ''')
         
@@ -256,8 +264,8 @@ def init_db():
         # Garantir que cada usuário tenha pelo menos um link padrão
         for user_id in [1, 2]:  # pedro e felipe
             conn.execute('''
-                INSERT OR IGNORE INTO custom_links (user_id, link_name, custom_message)
-                VALUES (?, 'padrao', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...')
+                INSERT OR IGNORE INTO custom_links (user_id, link_name, custom_message, prefix)
+                VALUES (?, 'whatsapp', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...', 1)
             ''', (user_id,))
 
 # Inicializar o banco de dados
@@ -490,21 +498,6 @@ def manage_links():
             if not link_name:
                 return jsonify({'success': False, 'error': 'Nome do link é obrigatório'}), 400
             
-            # Verificar se o link já existe para este usuário
-            existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ?', 
-                                  (link_name, user_id)).fetchone()
-            if existing:
-                return jsonify({'success': False, 'error': 'Este link já existe para o seu usuário'}), 400
-            
-            # Verificar se o link já existe para qualquer usuário (verificação global)
-            global_existing = conn.execute('SELECT cl.*, u.username FROM custom_links cl JOIN users u ON cl.user_id = u.id WHERE cl.link_name = ?', 
-                                       (link_name,)).fetchone()
-            if global_existing:
-                return jsonify({
-                    'success': False, 
-                    'error': f'Este nome de link já está sendo usado por outro usuário. Por favor, escolha um nome diferente.'
-                }), 400
-            
             # Verificar o limite de plano do usuário
             plan_info = conn.execute('''
                 SELECT p.max_links
@@ -530,12 +523,23 @@ def manage_links():
                     'error': f'Limite de links atingido. Seu plano permite apenas {plan_info["max_links"]} link(s). Contate o administrador para upgrade.'
                 }), 400
             
-            conn.execute('INSERT INTO custom_links (user_id, link_name, custom_message) VALUES (?, ?, ?)', 
-                       (user_id, link_name, custom_message))
-            return jsonify({'success': True, 'message': 'Link adicionado com sucesso'})
+            # Determinar o próximo prefixo disponível para este link
+            prefix = get_next_prefix(conn, user_id, link_name)
+            
+            # Inserir o novo link com o prefixo calculado
+            conn.execute('INSERT INTO custom_links (user_id, link_name, custom_message, prefix) VALUES (?, ?, ?, ?)', 
+                       (user_id, link_name, custom_message, prefix))
+            
+            # Retornar também o prefixo para que o frontend possa exibir o link completo
+            return jsonify({
+                'success': True, 
+                'message': 'Link adicionado com sucesso',
+                'prefix': prefix,
+                'full_link': f"{prefix}/{link_name}"
+            })
         
         # Se for GET, retornar todos os links
-        links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
+        links = conn.execute('SELECT * FROM custom_links WHERE user_id = ? ORDER BY link_name, prefix', (user_id,)).fetchall()
         return jsonify([dict(link) for link in links])
 
 @app.route('/api/links/<int:link_id>', methods=['DELETE'])
@@ -549,9 +553,9 @@ def delete_link(link_id):
         if not link:
             return jsonify({'success': False, 'error': 'Link não encontrado ou sem permissão'}), 403
         
-        # Não permitir excluir o link padrão
-        if link['link_name'] == 'padrao':
-            return jsonify({'success': False, 'error': 'Não é possível excluir o link padrão'}), 400
+        # Não permitir excluir o link padrão (agora whatsapp)
+        if link['link_name'] == 'whatsapp' and link['prefix'] == 1:
+            return jsonify({'success': False, 'error': 'Não é possível excluir o link padrão WhatsApp'}), 400
         
         conn.execute('DELETE FROM custom_links WHERE id = ?', (link_id,))
         return jsonify({'success': True})
@@ -569,28 +573,8 @@ def update_link(link_id):
         if not link:
             return jsonify({'success': False, 'error': 'Link não encontrado ou sem permissão'}), 403
         
-        # Se estiver tentando atualizar o nome do link, verificar se o novo nome já existe
-        if 'link_name' in data and data['link_name'] != link['link_name']:
-            # Verificar se já existe para o mesmo usuário
-            existing = conn.execute('SELECT * FROM custom_links WHERE link_name = ? AND user_id = ? AND id != ?', 
-                                 (data['link_name'], user_id, link_id)).fetchone()
-            if existing:
-                return jsonify({'success': False, 'error': 'Este nome de link já está em uso'}), 400
-            
-            # Verificar se o link já existe para qualquer usuário (verificação global)
-            global_existing = conn.execute('SELECT cl.*, u.username FROM custom_links cl JOIN users u ON cl.user_id = u.id WHERE cl.link_name = ? AND cl.id != ?', 
-                                       (data['link_name'], link_id)).fetchone()
-            if global_existing:
-                return jsonify({
-                    'success': False, 
-                    'error': f'Este nome de link já está sendo usado por outro usuário. Por favor, escolha um nome diferente.'
-                }), 400
-        
-        # Atualizar o link
-        if 'link_name' in data:
-            conn.execute('UPDATE custom_links SET link_name = ? WHERE id = ?', 
-                      (data['link_name'], link_id))
-        
+        # Atualizar o link (apenas custom_message e is_active)
+        # Nota: Não permitimos mais alterar o link_name para evitar confusão com o sistema de prefixos
         if 'custom_message' in data:
             conn.execute('UPDATE custom_links SET custom_message = ? WHERE id = ?', 
                       (data['custom_message'], link_id))
@@ -610,18 +594,23 @@ reserved_routes = [
 # Rota para redirecionamento direto ao WhatsApp (mantém o prefixo redirect por compatibilidade)
 @app.route('/redirect/<link_name>')
 def redirect_whatsapp_with_prefix(link_name):
-    return redirect_whatsapp_func(link_name)
+    return redirect_whatsapp_func(link_name, None)
 
-# Nova rota simplificada, sem o prefixo "redirect"
+# Nova rota para redirecionamento com prefixo/nome
+@app.route('/<int:prefix>/<link_name>')
+def redirect_whatsapp_with_counter(prefix, link_name):
+    return redirect_whatsapp_func(link_name, prefix)
+
+# Rota simplificada para compatibilidade com links antigos (tenta usar o prefixo 1)
 @app.route('/<link_name>')
 def redirect_whatsapp(link_name):
     # Verificar se o link_name não é uma rota reservada
     if link_name in reserved_routes:
         abort(404)  # Retorna 404 Not Found para evitar conflito com rotas existentes
-    return redirect_whatsapp_func(link_name)
+    return redirect_whatsapp_func(link_name, 1)  # Tentar com prefixo 1 (padrão)
 
 # Função que contém a lógica de redirecionamento
-def redirect_whatsapp_func(link_name):
+def redirect_whatsapp_func(link_name, prefix=None):
     redirect_start_time = datetime.now()
     
     # Melhorar a captura do IP para considerar proxies
@@ -640,19 +629,28 @@ def redirect_whatsapp_func(link_name):
         client_ip = '0.0.0.0'  # IP padrão quando não conseguimos detectar
     
     # Logar o IP capturado para debug
-    print(f"IP capturado para redirecionamento: {client_ip}")
+    print(f"IP capturado para redirecionamento: {client_ip}, Link: {link_name}, Prefix: {prefix}")
     
     user_agent = request.headers.get('User-Agent', '')
     
     try:
         with get_db_connection() as conn:
             # Procurar qual usuário é dono do link
-            link = conn.execute('''
+            query = '''
                 SELECT cl.*, u.id as owner_id 
                 FROM custom_links cl
                 JOIN users u ON cl.user_id = u.id
                 WHERE cl.link_name = ? AND cl.is_active = 1
-            ''', (link_name,)).fetchone()
+            '''
+            params = [link_name]
+            
+            # Se um prefixo foi especificado, adicionar à consulta
+            if prefix is not None:
+                query += " AND cl.prefix = ?"
+                params.append(prefix)
+            
+            # Buscar o link
+            link = conn.execute(query, params).fetchone()
             
             if not link:
                 # Link não encontrado ou inativo
@@ -1762,9 +1760,9 @@ def admin_usuarios():
                                              (username,)).fetchone()
                         if new_user:
                             conn.execute('''
-                                INSERT INTO custom_links (user_id, link_name, custom_message, is_active)
-                                VALUES (?, ?, ?, ?)
-                            ''', (new_user['id'], 'padrao', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...', 1))
+                                INSERT INTO custom_links (user_id, link_name, custom_message, is_active, prefix)
+                                VALUES (?, ?, ?, ?, ?)
+                            ''', (new_user['id'], 'whatsapp', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...', 1, 1))
                             
                         success_message = f"Usuário '{username}' criado com sucesso"
                     except Exception as e:
@@ -1884,6 +1882,34 @@ def delete_user(user_id):
         except:
             pass
         return jsonify({'success': False, 'error': f'Erro ao excluir usuário: {str(e)}'}), 500
+
+# Função para obter o próximo prefixo disponível para um usuário e nome de link
+def get_next_prefix(conn, user_id, link_name):
+    """
+    Determina o próximo prefixo disponível para um nome de link específico de um usuário.
+    Se o nome de link já existe, incrementa o prefixo.
+    
+    Args:
+        conn: Conexão com o banco de dados
+        user_id: ID do usuário
+        link_name: Nome do link
+        
+    Returns:
+        Próximo prefixo disponível (inteiro)
+    """
+    # Buscar o maior prefixo existente para este usuário e nome de link
+    max_prefix = conn.execute('''
+        SELECT MAX(prefix) as max_prefix
+        FROM custom_links
+        WHERE user_id = ? AND link_name = ?
+    ''', (user_id, link_name)).fetchone()['max_prefix']
+    
+    # Se não existir nenhum, começar com 1
+    if max_prefix is None:
+        return 1
+    
+    # Caso contrário, incrementar o maior prefixo
+    return max_prefix + 1
 
 if __name__ == '__main__':
     # Inicializar verificação de consistência de dados

@@ -87,12 +87,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Função para atualizar a visualização prévia do link
     function updateLinkPreview() {
+        // Obter ID do usuário da URL do elemento span
+        const userId = document.querySelector('.input-group-text').textContent.trim().split('/')[1] || '';
         const baseUrl = getBaseUrl() + '/';
         const linkName = this.value || 'seu-link';
         if (this.id === 'linkName') {
-            previewLink.textContent = baseUrl + linkName;
+            previewLink.textContent = linkName;
         } else {
-            editPreviewLink.textContent = baseUrl + linkName;
+            editPreviewLink.textContent = linkName;
         }
     }
     
@@ -311,9 +313,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('editLinkName').value = linkName;
                 document.getElementById('editCustomMessage').value = customMessage;
                 
-                // Atualizar visualização prévia
-                const baseUrl = getBaseUrl() + '/';
-                document.getElementById('editPreviewLink').textContent = baseUrl + linkName;
+                // Atualizar visualização prévia - apenas o nome do link
+                document.getElementById('editPreviewLink').textContent = linkName;
                 
                 // Abrir modal
                 const editLinkModal = new bootstrap.Modal(document.getElementById('editLinkModal'));

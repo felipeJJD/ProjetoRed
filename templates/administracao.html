@@ -366,10 +366,10 @@
                                                             <td>
                                                                 <span class="badge rounded-pill bg-primary">{{ link.click_count or 0 }}</span>
                                                             </td>
-                                                            <td><code>{{ request.host_url }}{{ link.link_name }}</code></td>
+                                                            <td><code>{{ request.host_url }}{{ session.user_id }}/{{ link.link_name }}</code></td>
                                                             <td>
                                                                 <div class="btn-group btn-group-sm">
-                                                                    <button type="button" class="btn btn-outline-light copy-link" data-url="{{ request.host_url }}{{ link.link_name }}">
+                                                                    <button type="button" class="btn btn-outline-light copy-link" data-url="{{ request.host_url }}{{ session.user_id }}/{{ link.link_name }}">
                                                                         <i class="bi bi-clipboard"></i>
                                                                     </button>
                                                                     <button class="btn btn-sm btn-warning edit-link" 
@@ -479,7 +479,7 @@
                 <div class="modal-body">
                     <form id="addLinkForm">
                         <div class="input-group mb-3">
-                            <span class="input-group-text">{{ request.host_url }}</span>
+                            <span class="input-group-text">{{ request.host_url }}{{ session.user_id }}/</span>
                             <input type="text" class="form-control" id="linkName" name="linkName" placeholder="nome-do-link" required>
                         </div>
                         <div class="mb-3">
@@ -489,7 +489,7 @@
                         <div class="mb-3">
                             <label class="form-label">URL do Link</label>
                             <div class="input-group">
-                                <span class="input-group-text">{{ request.host_url }}</span>
+                                <span class="input-group-text">{{ request.host_url }}{{ session.user_id }}/</span>
                                 <span class="form-control" id="previewLink">seu-link</span>
                             </div>
                             <div class="form-text" style="color: #ffffff !important;">Este será o URL que você compartilhará com seus clientes.</div>
@@ -516,7 +516,7 @@
                     <form id="editLinkForm">
                         <input type="hidden" id="editLinkId">
                         <div class="input-group mb-3">
-                            <span class="input-group-text">{{ request.host_url }}</span>
+                            <span class="input-group-text">{{ request.host_url }}{{ session.user_id }}/</span>
                             <input type="text" class="form-control" id="editLinkName" name="editLinkName" readonly>
                         </div>
                         <div class="mb-3">
@@ -526,7 +526,7 @@
                         <div class="mb-3">
                             <label class="form-label">URL do Link</label>
                             <div class="input-group">
-                                <span class="input-group-text">{{ request.host_url }}</span>
+                                <span class="input-group-text">{{ request.host_url }}{{ session.user_id }}/</span>
                                 <span class="form-control" id="editPreviewLink">seu-link</span>
                             </div>
                             <div class="form-text" style="color: #ffffff !important;">Este será o URL que você compartilhará com seus clientes.</div>

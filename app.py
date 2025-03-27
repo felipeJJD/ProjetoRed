@@ -1611,6 +1611,61 @@ def admin_backup():
     
     return render_template('backup.html')
 
+# Rota para a página de gerenciamento de usuários (apenas para o usuário Felipe)
+@app.route('/admin/usuarios')
+@login_required
+def admin_usuarios():
+    # Verificar se o usuário atual é o Felipe (ID 2)
+    if session.get('username') != 'felipe':
+        # Redirecionar para o dashboard se não for o Felipe
+        return redirect(url_for('dashboard'))
+    
+    # Obter todos os usuários e suas estatísticas
+    with get_db_connection() as conn:
+        # Obter todos os usuários
+        users = conn.execute('''
+            SELECT id, username, fullname, created_at
+            FROM users
+            ORDER BY id
+        ''').fetchall()
+        
+        # Para cada usuário, obter a contagem de links e chips
+        user_stats = []
+        for user in users:
+            # Contar links do usuário
+            links_count = conn.execute('''
+                SELECT COUNT(*) as count
+                FROM custom_links
+                WHERE user_id = ?
+            ''', (user['id'],)).fetchone()['count']
+            
+            # Contar chips do usuário
+            chips_count = conn.execute('''
+                SELECT COUNT(*) as count
+                FROM whatsapp_numbers
+                WHERE user_id = ?
+            ''', (user['id'],)).fetchone()['count']
+            
+            # Contar total de redirecionamentos para links do usuário
+            redirects_count = conn.execute('''
+                SELECT COUNT(*) as count
+                FROM redirect_logs rl
+                JOIN custom_links cl ON rl.link_id = cl.id
+                WHERE cl.user_id = ?
+            ''', (user['id'],)).fetchone()['count']
+            
+            user_stats.append({
+                'id': user['id'],
+                'username': user['username'],
+                'fullname': user['fullname'],
+                'created_at': user['created_at'],
+                'links_count': links_count,
+                'chips_count': chips_count,
+                'redirects_count': redirects_count
+            })
+    
+    return render_template('admin_usuarios.html', users=user_stats)
+
 if __name__ == '__main__':
     # Inicializar verificação de consistência de dados
     with app.app_context():

@@ -390,7 +390,7 @@ def manage_numbers():
             ''', (user_id,)).fetchone()['count']
             
             # Se max_numbers > 0 (não ilimitado) e já atingiu o limite, impedir a criação
-            if plan_info['max_numbers'] > 0 and current_numbers >= plan_info['max_numbers']:
+            if plan_info['max_numbers'] >= 0 and current_numbers >= plan_info['max_numbers']:
                 return jsonify({
                     'success': False, 
                     'error': f'Limite de chips atingido. Seu plano permite apenas {plan_info["max_numbers"]} chip(s). Contate o administrador para upgrade.'
@@ -515,7 +515,7 @@ def manage_links():
             ''', (user_id,)).fetchone()['count']
             
             # Se max_links > 0 (não ilimitado) e já atingiu o limite, impedir a criação
-            if plan_info['max_links'] > 0 and current_links >= plan_info['max_links']:
+            if plan_info['max_links'] >= 0 and current_links >= plan_info['max_links']:
                 return jsonify({
                     'success': False, 
                     'error': f'Limite de links atingido. Seu plano permite apenas {plan_info["max_links"]} link(s). Contate o administrador para upgrade.'

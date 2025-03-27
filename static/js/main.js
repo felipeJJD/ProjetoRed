@@ -133,7 +133,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     description: description
                 }),
             })
-            .then(response => response.json())
+            .then(response => {
+                // Verificar se a resposta foi bem-sucedida
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw new Error(errorData.error || 'Erro ao adicionar número');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     // Fechar modal
@@ -150,12 +158,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Recarregar a página para atualizar a lista
                     window.location.reload();
                 } else {
-                    showToast(data.message, 'danger');
+                    showToast(data.error || data.message || 'Erro ao adicionar número', 'danger');
                 }
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showToast('Ocorreu um erro ao adicionar o número', 'danger');
+                showToast(error.message || 'Ocorreu um erro ao adicionar o número', 'danger');
             });
         });
     }
@@ -229,7 +237,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     custom_message: customMessage
                 }),
             })
-            .then(response => response.json())
+            .then(response => {
+                // Verificar se a resposta foi bem-sucedida
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw new Error(errorData.error || 'Erro ao adicionar link');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     // Fechar modal
@@ -251,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showToast('Ocorreu um erro ao adicionar o link', 'danger');
+                showToast(error.message || 'Ocorreu um erro ao adicionar o link', 'danger');
             });
         });
     }
@@ -363,7 +379,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     custom_message: customMessage
                 }),
             })
-            .then(response => response.json())
+            .then(response => {
+                // Verificar se a resposta foi bem-sucedida
+                if (!response.ok) {
+                    return response.json().then(errorData => {
+                        throw new Error(errorData.error || 'Erro ao atualizar link');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     // Fechar modal
@@ -381,7 +405,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Erro:', error);
-                showToast('Ocorreu um erro ao atualizar o link', 'danger');
+                showToast(error.message || 'Ocorreu um erro ao atualizar o link', 'danger');
             });
         });
     }

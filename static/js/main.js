@@ -145,12 +145,24 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     // Fechar modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('addNumberModal'));
-                    modal.hide();
+                    const modalElement = document.getElementById('addNumberModal');
+                    if (modalElement) {
+                        const modal = bootstrap.Modal.getInstance(modalElement);
+                        if (modal) {
+                            modal.hide();
+                        }
+                    }
                     
                     // Limpar formulário
-                    document.getElementById('phoneNumber').value = '';
-                    document.getElementById('description').value = '';
+                    const phoneNumberEl = document.getElementById('phoneNumber');
+                    if (phoneNumberEl) {
+                        phoneNumberEl.value = '';
+                    }
+                    
+                    const descriptionEl = document.getElementById('description');
+                    if (descriptionEl) {
+                        descriptionEl.value = '';
+                    }
                     
                     // Mostrar mensagem de sucesso
                     showToast(data.message);
@@ -249,12 +261,24 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     // Fechar modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('addLinkModal'));
-                    modal.hide();
+                    const modalElement = document.getElementById('addLinkModal');
+                    if (modalElement) {
+                        const modal = bootstrap.Modal.getInstance(modalElement);
+                        if (modal) {
+                            modal.hide();
+                        }
+                    }
                     
                     // Limpar formulário
-                    document.getElementById('linkName').value = '';
-                    document.getElementById('customMessage').value = 'Você será redirecionado para um de nossos atendentes. Aguarde um momento...';
+                    const linkNameEl = document.getElementById('linkName');
+                    if (linkNameEl) {
+                        linkNameEl.value = '';
+                    }
+                    
+                    const customMessageEl = document.getElementById('customMessage');
+                    if (customMessageEl) {
+                        customMessageEl.value = 'Você será redirecionado para um de nossos atendentes. Aguarde um momento...';
+                    }
                     
                     // Mostrar mensagem de sucesso
                     showToast(data.message);
@@ -391,8 +415,13 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     // Fechar modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('editLinkModal'));
-                    modal.hide();
+                    const modalElement = document.getElementById('editLinkModal');
+                    if (modalElement) {
+                        const modal = bootstrap.Modal.getInstance(modalElement);
+                        if (modal) {
+                            modal.hide();
+                        }
+                    }
                     
                     // Mostrar mensagem de sucesso
                     showToast(data.message);

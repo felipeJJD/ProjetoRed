@@ -289,7 +289,11 @@ def administracao():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html')
+    user_id = session.get('user_id')
+    with get_db_connection() as conn:
+        links = conn.execute('SELECT * FROM custom_links WHERE user_id = ?', (user_id,)).fetchall()
+    
+    return render_template('dashboard.html', links=links)
 
 # API para gerenciar números
 @app.route('/api/numbers', methods=['GET', 'POST'])

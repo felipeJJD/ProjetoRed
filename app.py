@@ -1600,6 +1600,17 @@ def backup_db_secret():
     except Exception as e:
         return str(e), 500
 
+# Rota para a página de backup (apenas para o usuário Felipe)
+@app.route('/admin/backup')
+@login_required
+def admin_backup():
+    # Verificar se o usuário atual é o Felipe (ID 2)
+    if session.get('username') != 'felipe':
+        # Redirecionar para o dashboard se não for o Felipe
+        return redirect(url_for('dashboard'))
+    
+    return render_template('backup.html')
+
 if __name__ == '__main__':
     # Inicializar verificação de consistência de dados
     with app.app_context():

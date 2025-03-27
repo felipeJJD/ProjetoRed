@@ -217,6 +217,13 @@
                             <i class="bi bi-gear"></i> Administração
                         </a>
                     </li>
+                    {% if session.username == 'felipe' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_backup') }}">
+                            <i class="bi bi-database"></i> Backup
+                        </a>
+                    </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('index') }}">
                             <i class="bi bi-house"></i> Página Inicial

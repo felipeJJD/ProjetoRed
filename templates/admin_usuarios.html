@@ -79,6 +79,45 @@
                 padding-bottom: 15px;
             }
         }
+        .plan-box {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #fff;
+        }
+        .plan-box h4 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .plan-box ul {
+            padding-left: 20px;
+            margin-bottom: 15px;
+        }
+        .plan-box.active {
+            border-color: #28a745;
+            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+        }
+        .limit-warning {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .limit-ok {
+            color: #28a745;
+        }
+        .badge-plan {
+            font-size: 0.8rem;
+            padding: 0.4em 0.6em;
+        }
+        .badge-basic {
+            background-color: #6c757d;
+        }
+        .badge-intermediary {
+            background-color: #17a2b8;
+        }
+        .badge-advanced {
+            background-color: #28a745;
+        }
     </style>
 </head>
 <body>
@@ -150,9 +189,81 @@
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">Gerenciamento de Usuários</h1>
                 </div>
-
+                
+                {% if error_message %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill"></i> {{ error_message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+                {% endif %}
+                
+                {% if success_message %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle-fill"></i> {{ success_message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+                {% endif %}
+                
                 <div class="alert alert-info">
-                    <i class="bi bi-info-circle-fill"></i> Esta página exibe informações sobre todos os usuários cadastrados no sistema e suas estatísticas.
+                    <i class="bi bi-info-circle-fill"></i> Esta página permite gerenciar usuários do sistema e adicionar novos usuários com diferentes níveis de plano.
+                </div>
+
+                <!-- Adicionar Novo Usuário -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-person-plus"></i> Adicionar Novo Usuário</span>
+                        <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newUserForm" aria-expanded="false" aria-controls="newUserForm">
+                            <i class="bi bi-plus-circle"></i> Novo Usuário
+                        </button>
+                    </div>
+                    <div class="card-body collapse" id="newUserForm">
+                        <form method="POST" action="{{ url_for('admin_usuarios') }}">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label for="username" class="form-label">Nome de Usuário</label>
+                                    <input type="text" class="form-control" id="username" name="username" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="password" class="form-label">Senha</label>
+                                    <input type="password" class="form-control" id="password" name="password" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="fullname" class="form-label">Nome Completo</label>
+                                    <input type="text" class="form-control" id="fullname" name="fullname" required>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <label class="form-label">Selecione o Plano</label>
+                                    <div class="row">
+                                        {% for plan in plans %}
+                                        <div class="col-md-4">
+                                            <div class="plan-box plan-selector" data-plan-id="{{ plan.id }}">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="plan_id" id="plan{{ plan.id }}" value="{{ plan.id }}" {% if plan.id == 1 %}checked{% endif %}>
+                                                    <label class="form-check-label" for="plan{{ plan.id }}">
+                                                        <h4>{{ plan.description }}</h4>
+                                                    </label>
+                                                </div>
+                                                <ul>
+                                                    <li>Chips: <strong>{{ plan.max_numbers }}</strong></li>
+                                                    <li>Links: <strong>{% if plan.max_links < 0 %}Ilimitados{% else %}{{ plan.max_links }}{% endif %}</strong></li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-person-plus-fill"></i> Adicionar Usuário
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
 
                 <!-- Estatísticas de Usuários -->
@@ -167,11 +278,12 @@
                                     <tr>
                                         <th>ID</th>
                                         <th>Usuário</th>
-                                        <th>Nome Completo</th>
-                                        <th>Data de Criação</th>
+                                        <th>Nome</th>
+                                        <th>Plano</th>
                                         <th>Links</th>
                                         <th>Chips</th>
                                         <th>Redirecionamentos</th>
+                                        <th>Data de Criação</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -181,15 +293,40 @@
                                             <td>{{ user.id }}</td>
                                             <td>{{ user.username }}</td>
                                             <td>{{ user.fullname }}</td>
-                                            <td>{{ user.created_at }}</td>
-                                            <td>{{ user.links_count }}</td>
-                                            <td>{{ user.chips_count }}</td>
+                                            <td>
+                                                <span class="badge bg-{% if user.plan_name == 'basic' %}secondary{% elif user.plan_name == 'intermediary' %}info{% else %}success{% endif %} badge-plan">
+                                                    {{ user.plan_name }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {{ user.links_count }}
+                                                {% if user.links_limit_reached %}
+                                                <small class="limit-warning"><i class="bi bi-exclamation-triangle"></i> Limite</small>
+                                                {% else %}
+                                                <small class="limit-ok">
+                                                    {% if user.max_links < 0 %}
+                                                    <i class="bi bi-infinity"></i>
+                                                    {% else %}
+                                                    <i class="bi bi-check"></i> (max: {{ user.max_links }})
+                                                    {% endif %}
+                                                </small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ user.chips_count }}
+                                                {% if user.numbers_limit_reached %}
+                                                <small class="limit-warning"><i class="bi bi-exclamation-triangle"></i> Limite</small>
+                                                {% else %}
+                                                <small class="limit-ok"><i class="bi bi-check"></i> (max: {{ user.max_numbers }})</small>
+                                                {% endif %}
+                                            </td>
                                             <td>{{ user.redirects_count }}</td>
+                                            <td>{{ user.created_at }}</td>
                                         </tr>
                                         {% endfor %}
                                     {% else %}
                                         <tr>
-                                            <td colspan="7" class="text-center">Nenhum usuário cadastrado</td>
+                                            <td colspan="8" class="text-center">Nenhum usuário cadastrado</td>
                                         </tr>
                                     {% endif %}
                                 </tbody>
@@ -202,5 +339,43 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Destacar o plano selecionado
+            const planBoxes = document.querySelectorAll('.plan-selector');
+            const planRadios = document.querySelectorAll('input[name="plan_id"]');
+            
+            // Função para atualizar a aparência dos planos
+            function updatePlanSelection() {
+                planBoxes.forEach(box => {
+                    box.classList.remove('active');
+                });
+                
+                planRadios.forEach(radio => {
+                    if (radio.checked) {
+                        const planBox = radio.closest('.plan-box');
+                        planBox.classList.add('active');
+                    }
+                });
+            }
+            
+            // Inicializar a seleção
+            updatePlanSelection();
+            
+            // Adicionar evento de clique nos planos
+            planBoxes.forEach(box => {
+                box.addEventListener('click', function() {
+                    const radio = this.querySelector('input[type="radio"]');
+                    radio.checked = true;
+                    updatePlanSelection();
+                });
+            });
+            
+            // Evento para quando os radio buttons mudam
+            planRadios.forEach(radio => {
+                radio.addEventListener('change', updatePlanSelection);
+            });
+        });
+    </script>
 </body>
 </html> 

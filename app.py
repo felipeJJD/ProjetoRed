@@ -27,6 +27,35 @@ def get_db_connection():
 
 def init_db():
     with get_db_connection() as conn:
+        # Criar tabela de planos
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS plans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                max_numbers INTEGER NOT NULL,
+                max_links INTEGER NOT NULL,
+                description TEXT
+            )
+        ''')
+        
+        # Verificar se existem planos e criar os padrões se não houver
+        if not conn.execute('SELECT * FROM plans').fetchone():
+            # Criar planos padrão (básico, intermediário, avançado)
+            conn.execute('''
+                INSERT INTO plans (name, max_numbers, max_links, description)
+                VALUES (?, ?, ?, ?)
+            ''', ('basic', 2, 1, 'Plano Básico'))
+            
+            conn.execute('''
+                INSERT INTO plans (name, max_numbers, max_links, description)
+                VALUES (?, ?, ?, ?)
+            ''', ('intermediary', 5, 5, 'Plano Intermediário'))
+            
+            conn.execute('''
+                INSERT INTO plans (name, max_numbers, max_links, description)
+                VALUES (?, ?, ?, ?)
+            ''', ('advanced', 15, -1, 'Plano Avançado')) # -1 indica links ilimitados
+        
         # Criar tabela de usuários
         conn.execute('''
             CREATE TABLE IF NOT EXISTS users (
@@ -34,7 +63,9 @@ def init_db():
                 username TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
                 fullname TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                plan_id INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (plan_id) REFERENCES plans (id)
             )
         ''')
         
@@ -42,15 +73,24 @@ def init_db():
         if not conn.execute('SELECT * FROM users').fetchone():
             # Criar usuários padrão (pedro e felipe)
             conn.execute('''
-                INSERT INTO users (username, password, fullname)
-                VALUES (?, ?, ?)
-            ''', ('pedro', generate_password_hash('Vera123'), 'Pedro Administrador'))
+                INSERT INTO users (username, password, fullname, plan_id)
+                VALUES (?, ?, ?, ?)
+            ''', ('pedro', generate_password_hash('Vera123'), 'Pedro Administrador', 3))
             
             conn.execute('''
-                INSERT INTO users (username, password, fullname)
-                VALUES (?, ?, ?)
-            ''', ('felipe', generate_password_hash('123'), 'Felipe Administrador'))
+                INSERT INTO users (username, password, fullname, plan_id)
+                VALUES (?, ?, ?, ?)
+            ''', ('felipe', generate_password_hash('123'), 'Felipe Administrador', 3))
 
+        # Verificar se precisamos adicionar a coluna plan_id na tabela users (para bancos existentes)
+        user_cols = [col['name'] for col in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if 'plan_id' not in user_cols:
+            try:
+                conn.execute('ALTER TABLE users ADD COLUMN plan_id INTEGER DEFAULT 1')
+                conn.execute('UPDATE users SET plan_id = 3') # Define plano avançado para usuários existentes
+            except:
+                print("Erro ao adicionar coluna plan_id à tabela users")
+        
         # Criar tabela de números com referência ao usuário
         conn.execute('''
             CREATE TABLE IF NOT EXISTS whatsapp_numbers (
@@ -1612,7 +1652,7 @@ def admin_backup():
     return render_template('backup.html')
 
 # Rota para a página de gerenciamento de usuários (apenas para o usuário Felipe)
-@app.route('/admin/usuarios')
+@app.route('/admin/usuarios', methods=['GET', 'POST'])
 @login_required
 def admin_usuarios():
     # Verificar se o usuário atual é o Felipe (ID 2)
@@ -1620,13 +1660,63 @@ def admin_usuarios():
         # Redirecionar para o dashboard se não for o Felipe
         return redirect(url_for('dashboard'))
     
+    error_message = None
+    success_message = None
+    
+    # Processar a adição de um novo usuário
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        fullname = request.form.get('fullname')
+        plan_id = request.form.get('plan_id')
+        
+        # Validar dados
+        if not username or not password or not fullname or not plan_id:
+            error_message = "Todos os campos são obrigatórios"
+        else:
+            # Verificar se o usuário já existe
+            with get_db_connection() as conn:
+                existing_user = conn.execute('SELECT id FROM users WHERE username = ?', 
+                                          (username,)).fetchone()
+                if existing_user:
+                    error_message = f"Usuário '{username}' já existe"
+                else:
+                    try:
+                        # Inserir novo usuário
+                        conn.execute('''
+                            INSERT INTO users (username, password, fullname, plan_id)
+                            VALUES (?, ?, ?, ?)
+                        ''', (username, generate_password_hash(password), fullname, plan_id))
+                        
+                        # Criar link padrão para o novo usuário
+                        new_user = conn.execute('SELECT id FROM users WHERE username = ?', 
+                                             (username,)).fetchone()
+                        if new_user:
+                            conn.execute('''
+                                INSERT INTO custom_links (user_id, link_name, custom_message, is_active)
+                                VALUES (?, ?, ?, ?)
+                            ''', (new_user['id'], 'padrao', 'Olá! Você será redirecionado para um de nossos atendentes. Aguarde um momento...', 1))
+                            
+                        success_message = f"Usuário '{username}' criado com sucesso"
+                    except Exception as e:
+                        error_message = f"Erro ao criar usuário: {str(e)}"
+    
     # Obter todos os usuários e suas estatísticas
     with get_db_connection() as conn:
-        # Obter todos os usuários
-        users = conn.execute('''
-            SELECT id, username, fullname, created_at
-            FROM users
+        # Obter todos os planos
+        plans = conn.execute('''
+            SELECT id, name, max_numbers, max_links, description
+            FROM plans
             ORDER BY id
+        ''').fetchall()
+        
+        # Obter todos os usuários com informações do plano
+        users = conn.execute('''
+            SELECT u.id, u.username, u.fullname, u.created_at, u.plan_id, 
+                   p.name as plan_name, p.max_numbers, p.max_links
+            FROM users u
+            JOIN plans p ON u.plan_id = p.id
+            ORDER BY u.id
         ''').fetchall()
         
         # Para cada usuário, obter a contagem de links e chips
@@ -1654,17 +1744,25 @@ def admin_usuarios():
                 WHERE cl.user_id = ?
             ''', (user['id'],)).fetchone()['count']
             
+            # Verificar limites do plano
             user_stats.append({
                 'id': user['id'],
                 'username': user['username'],
                 'fullname': user['fullname'],
                 'created_at': user['created_at'],
+                'plan_id': user['plan_id'],
+                'plan_name': user['plan_name'],
+                'max_numbers': user['max_numbers'],
+                'max_links': user['max_links'],
                 'links_count': links_count,
                 'chips_count': chips_count,
-                'redirects_count': redirects_count
+                'redirects_count': redirects_count,
+                'links_limit_reached': links_count >= user['max_links'] if user['max_links'] > 0 else False,
+                'numbers_limit_reached': chips_count >= user['max_numbers']
             })
     
-    return render_template('admin_usuarios.html', users=user_stats)
+    return render_template('admin_usuarios.html', users=user_stats, plans=plans, 
+                          error_message=error_message, success_message=success_message)
 
 if __name__ == '__main__':
     # Inicializar verificação de consistência de dados

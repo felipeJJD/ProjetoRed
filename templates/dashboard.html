@@ -480,28 +480,23 @@
     </div>
     
     <script>
+        // Função global para formatar data como YYYY-MM-DD
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             // Set default date range (today as default)
             const today = new Date();
             
-            // Format date as YYYY-MM-DD
-            const formatDate = (date) => {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            };
-            
-            // Set today as default end date
+            // Set today as default for both start and end date
             const formattedToday = formatDate(today);
             
-            // Set start date as 7 days before today
-            const lastWeek = new Date(today);
-            lastWeek.setDate(today.getDate() - 7);
-            const formattedLastWeek = formatDate(lastWeek);
-            
             // Set values
-            document.getElementById('startDate').value = formattedLastWeek;
+            document.getElementById('startDate').value = formattedToday;
             document.getElementById('endDate').value = formattedToday;
             
             // Inicialização do mapa antes de carregar os dados
@@ -529,6 +524,17 @@
             });
             
             document.getElementById('startDate').addEventListener('change', function() {
+                // Validar se a data não é futura
+                const selectedDate = new Date(this.value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Resetar horas para comparação apenas de datas
+                
+                if (selectedDate > today) {
+                    console.warn('Data inicial futura detectada, ajustando para hoje');
+                    this.value = formatDate(today);
+                    alert('Não é possível selecionar uma data futura. A data foi ajustada para hoje.');
+                }
+                
                 console.log('Data inicial alterada:', this.value);
                 loadNumberStats();
                 currentPage = 1; // Reset to first page
@@ -537,6 +543,25 @@
             });
             
             document.getElementById('endDate').addEventListener('change', function() {
+                // Validar se a data não é futura
+                const selectedDate = new Date(this.value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Resetar horas para comparação apenas de datas
+                
+                if (selectedDate > today) {
+                    console.warn('Data final futura detectada, ajustando para hoje');
+                    this.value = formatDate(today);
+                    alert('Não é possível selecionar uma data futura. A data foi ajustada para hoje.');
+                }
+                
+                // Verificar se a data final é anterior à data inicial
+                const startDate = new Date(document.getElementById('startDate').value);
+                if (selectedDate < startDate) {
+                    console.warn('Data final anterior à data inicial, ajustando');
+                    this.value = document.getElementById('startDate').value;
+                    alert('A data final não pode ser anterior à data inicial. A data foi ajustada.');
+                }
+                
                 console.log('Data final alterada:', this.value);
                 loadNumberStats();
                 currentPage = 1; // Reset to first page
@@ -609,8 +634,13 @@
             
             console.log(`Carregando estatísticas por chip: início=${startDate}, fim=${endDate}`);
             
+            // Verificar se as datas estão definidas, caso contrário usar a data atual
+            const today = formatDate(new Date());
+            const queryStartDate = startDate || today;
+            const queryEndDate = endDate || today;
+            
             // Fetch data from API
-            fetch(`/api/stats/by-number?start_date=${startDate}&end_date=${endDate}&link_id=${linkId}`)
+            fetch(`/api/stats/by-number?start_date=${queryStartDate}&end_date=${queryEndDate}&link_id=${linkId}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Erro na resposta da API: ' + response.status);
@@ -686,6 +716,11 @@
             const endDate = document.getElementById('endDate').value;
             const linkId = document.getElementById('linkSelector').value;
             
+            // Verificar se as datas estão definidas, caso contrário usar a data atual
+            const today = formatDate(new Date());
+            const queryStartDate = startDate || today;
+            const queryEndDate = endDate || today;
+            
             // Mostrar indicador de carregamento se não estiver anexando
             if (!append) {
                 const activityContainer = document.getElementById('recentActivity');
@@ -710,13 +745,11 @@
             // Sempre incluir link_id, mesmo que seja 'all'
             apiUrl.searchParams.set('link_id', linkId || 'all');
             
-            // Incluir datas somente se ambas estiverem definidas
-            if (startDate && endDate) {
-                apiUrl.searchParams.set('start_date', startDate);
-                apiUrl.searchParams.set('end_date', endDate);
-                // Se temos datas definidas, solicitar todos os registros
-                apiUrl.searchParams.set('all', 'true');
-            }
+            // Sempre incluir as datas (com fallback para hoje se não estiverem definidas)
+            apiUrl.searchParams.set('start_date', queryStartDate);
+            apiUrl.searchParams.set('end_date', queryEndDate);
+            // Se temos datas definidas, solicitar todos os registros
+            apiUrl.searchParams.set('all', 'true');
             
             console.log('Buscando atividades recentes:', apiUrl.toString());
             
@@ -858,15 +891,17 @@
             const endDate = document.getElementById('endDate').value;
             const linkId = document.getElementById('linkSelector').value;
             
+            // Verificar se as datas estão definidas, caso contrário usar a data atual
+            const today = formatDate(new Date());
+            const queryStartDate = startDate || today;
+            const queryEndDate = endDate || today;
+            
             // Construir URL com os parâmetros de filtro
             let url = '/api/stats/map';
-            if (startDate && endDate) {
-                url += `?start_date=${startDate}&end_date=${endDate}`;
-                if (linkId && linkId !== 'all') {
-                    url += `&link_id=${linkId}`;
-                }
-            } else if (linkId && linkId !== 'all') {
-                url += `?link_id=${linkId}`;
+            // Sempre incluir datas
+            url += `?start_date=${queryStartDate}&end_date=${queryEndDate}`;
+            if (linkId && linkId !== 'all') {
+                url += `&link_id=${linkId}`;
             }
             
             // Remover todos os marcadores existentes do mapa
@@ -948,15 +983,17 @@
             const endDate = document.getElementById('endDate').value;
             const linkId = document.getElementById('linkSelector').value;
             
+            // Verificar se as datas estão definidas, caso contrário usar a data atual
+            const today = formatDate(new Date());
+            const queryStartDate = startDate || today;
+            const queryEndDate = endDate || today;
+            
             // Construir URL com os parâmetros de filtro
             let url = '/api/stats/summary';
-            if (startDate && endDate) {
-                url += `?start_date=${startDate}&end_date=${endDate}`;
-                if (linkId && linkId !== 'all') {
-                    url += `&link_id=${linkId}`;
-                }
-            } else if (linkId && linkId !== 'all') {
-                url += `?link_id=${linkId}`;
+            // Sempre incluir datas
+            url += `?start_date=${queryStartDate}&end_date=${queryEndDate}`;
+            if (linkId && linkId !== 'all') {
+                url += `&link_id=${linkId}`;
             }
             
             // Fazer a requisição para obter as estatísticas

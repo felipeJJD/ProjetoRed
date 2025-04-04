@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administração - REDIZAP</title>
+    <!-- Adicionando favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='img/logos/Subtract.png') }}" type="image/png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <!-- CSS personalizado carregado por último para ter precedência -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    <style>
+        :root {
+            --dark-bg: #121212;
+            --dark-card: #1e1e1e;
+            --dark-header: #252525;
+            --dark-text: #e0e0e0;
+            --dark-secondary: #b0b0b0;
+            --dark-border: #333;
+            --dark-hover: #2c2c2c;
+            --accent-color: #25d366;
+            --bs-secondary-color: #ffffff !important;
+            --bs-secondary-color-rgb: 255, 255, 255 !important;
+        }
+        
+        body {
+            background-color: var(--dark-bg);
+            color: var(--dark-text);
+        }
+        
+        .card {
+            background-color: var(--dark-card);
+            border-color: var(--dark-border);
+        }
+        
+        .card-header {
+            background-color: var(--dark-header);
+            border-bottom-color: var(--dark-border);
+        }
+        
+        .table {
+            color: var(--dark-text);
+        }
+        
+        .table-striped>tbody>tr:nth-of-type(odd) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+        
+        .table-striped>tbody>tr:nth-of-type(odd)>* {
+            --bs-table-accent-bg: var(--bs-table-striped-bg);
+            color: #ffffff !important;
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: var(--dark-hover);
+        }
+        
+        .nav-tabs {
+            border-bottom-color: var(--dark-border);
+        }
+        
+        .nav-tabs .nav-link {
+            color: var(--dark-secondary);
+        }
+        
+        .nav-tabs .nav-link.active {
+            background-color: var(--dark-card);
+            color: var(--dark-text);
+            border-color: var(--dark-border);
+        }
+        
+        .modal-content {
+            background-color: var(--dark-card);
+            border-color: var(--dark-border);
+        }
+        
+        .form-control, .form-select {
+            background-color: var(--dark-header);
+            border-color: var(--dark-border);
+            color: var(--dark-text);
+        }
+        
+        .form-text {
+            color: var(--dark-secondary);
+        }
+        
+        code {
+            background-color: #2d2d2d;
+            color: #e0e0e0;
+        }
+        
+        .btn-success {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
+        .btn-outline-secondary {
+            color: var(--dark-text);
+            border-color: var(--dark-border);
+        }
+        
+        .alert-info {
+            background-color: rgba(0, 123, 255, 0.1);
+            border-color: rgba(0, 123, 255, 0.2);
+            color: #8bb9fe;
+        }
+        
+        /* Estilos do menu lateral */
+        .sidebar {
+            background-color: #1a1a1a;
+            color: white;
+            min-height: 100vh;
+            padding-top: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .sidebar .nav-link {
+            color: #ddd;
+            padding: 10px 20px;
+            margin: 5px 0;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background-color: var(--accent-color);
+            color: white;
+            transform: translateX(5px);
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 10px;
+        }
+        
+        .main-content {
+            padding: 20px;
+        }
+        
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+        
+        .text-muted {
+            --bs-text-opacity: 1;
+            color: #ffffff !important;
+        }
+        
+        /* Sobrescrever qualquer instância de texto muted */
+        .text-muted, .form-text, small.text-muted, span.text-muted, div.text-muted, p.text-muted {
+            color: #ffffff !important;
+        }
+        
+        body .form-text, html .form-text, 
+        body .text-muted, html .text-muted {
+            color: #ffffff !important;
+        }
+        
+        /* Estilos do logo */
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+        }
+        
+        .logo-container img {
+            max-width: 180px;
+            height: auto;
+        }
+        
+        .header-logo {
+            max-height: 35px;
+            margin-right: 10px;
+        }
+        
+        .tab-section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .tab-section-header img {
+            height: 24px;
+            margin-right: 10px;
+        }
+    </style>
+    
+    <!-- Script para forçar cores após o carregamento da página -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.form-text, .text-muted').forEach(function(el) {
+                el.style.setProperty('color', '#ffffff', 'important');
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Menu Lateral -->
+            <div class="col-md-2 sidebar">
+                <div class="logo-container mb-4">
+                    <img src="/static/img/logos/Group%201171275299.png" alt="REDZAP Logo" class="img-fluid">
+                </div>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">
+                            <i class="bi bi-graph-up"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('administracao') }}">
+                            <i class="bi bi-gear"></i> Administração
+                        </a>
+                    </li>
+                    {% if session.username == 'felipe' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_backup') }}">
+                            <i class="bi bi-database"></i> Backup
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_usuarios') }}">
+                            <i class="bi bi-people"></i> Usuários
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="bi bi-house"></i> Página Inicial
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            <i class="bi bi-box-arrow-right"></i> Sair
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Conteúdo Principal -->
+            <div class="col-md-10 main-content">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex align-items-center">
+                        <img src="{{ url_for('static', filename='img/logos/Subtract-2.png') }}" alt="REDZAP Icon" class="header-logo">
+                        <h2>Painel de Administração</h2>
+                    </div>
+                    <div>
+                        <span class="badge bg-secondary me-2">
+                            <i class="bi bi-person-circle me-1"></i> {{ session.username }}
+                        </span>
+                    </div>
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-md-11">
+                        <div class="card shadow mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h2 class="h4 mb-0">REDIZAP - Administração</h2>
+                                <div>
+                                    <span class="badge bg-secondary me-2">
+                                        <i class="bi bi-person-circle me-1"></i> {{ session.username }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <!-- Abas para Navegação -->
+                                <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="numbers-tab" data-bs-toggle="tab" data-bs-target="#numbers" type="button" role="tab" aria-controls="numbers" aria-selected="true">
+                                            Números de WhatsApp
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="links-tab" data-bs-toggle="tab" data-bs-target="#links" type="button" role="tab" aria-controls="links" aria-selected="false">
+                                            Links Personalizados
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="help-tab" data-bs-toggle="tab" data-bs-target="#help" type="button" role="tab" aria-controls="help" aria-selected="false">
+                                            Ajuda
+                                        </button>
+                                    </li>
+                                </ul>
+                                
+                                <!-- Conteúdo das Abas -->
+                                <div class="tab-content" id="adminTabsContent">
+                                    <!-- Aba de Números -->
+                                    <div class="tab-pane fade show active" id="numbers" role="tabpanel" aria-labelledby="numbers-tab">
+                                        <div class="d-flex justify-content-between mb-3">
+                                            <h3 class="h5">Lista de Números Cadastrados</h3>
+                                            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addNumberModal">
+                                                <i class="bi bi-plus-circle me-1"></i> Adicionar Número
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="table-responsive">
+                                            <table class="table table-striped table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>ID</th>
+                                                        <th>Número</th>
+                                                        <th>Descrição</th>
+                                                        <th>Ações</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="numbersList">
+                                                    {% if numbers %}
+                                                        {% for number in numbers %}
+                                                        <tr data-id="{{ number.id }}">
+                                                            <td>{{ number.id }}</td>
+                                                            <td>{{ number.phone_number }}</td>
+                                                            <td>{{ number.description }}</td>
+                                                            <td>
+                                                                <button class="btn btn-sm btn-danger delete-number" data-id="{{ number.id }}">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <tr>
+                                                            <td colspan="4" class="text-center">Nenhum número cadastrado</td>
+                                                        </tr>
+                                                    {% endif %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Aba de Links -->
+                                    <div class="tab-pane fade" id="links" role="tabpanel" aria-labelledby="links-tab">
+                                        <div class="d-flex justify-content-between mb-3">
+                                            <h3 class="h5">Links Personalizados</h3>
+                                            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addLinkModal">
+                                                <i class="bi bi-plus-circle me-1"></i> Criar Novo Link
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="table-responsive">
+                                            <table class="table table-striped table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>ID</th>
+                                                        <th>Nome do Link</th>
+                                                        <th>Mensagem Personalizada</th>
+                                                        <th>Cliques</th>
+                                                        <th>URL Completa</th>
+                                                        <th>Ações</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="linksList">
+                                                    {% if links %}
+                                                        {% for link in links %}
+                                                        <tr data-id="{{ link.id }}">
+                                                            <td>{{ link.id }}</td>
+                                                            <td>{{ link.link_name }}</td>
+                                                            <td>
+                                                                <div class="text-truncate" style="max-width: 200px;">
+                                                                    {{ link.custom_message }}
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge rounded-pill bg-primary">{{ link.click_count or 0 }}</span>
+                                                            </td>
+                                                            <td><code>{{ request.host_url }}{{ session.user_id }}/{{ link.link_name }}</code></td>
+                                                            <td>
+                                                                <div class="btn-group btn-group-sm">
+                                                                    <button type="button" class="btn btn-outline-light copy-link" data-url="{{ request.host_url }}{{ session.user_id }}/{{ link.link_name }}">
+                                                                        <i class="bi bi-clipboard"></i>
+                                                                    </button>
+                                                                    <button class="btn btn-sm btn-warning edit-link" 
+                                                                        data-id="{{ link.id }}" 
+                                                                        data-name="{{ link.link_name }}"
+                                                                        data-message="{{ link.custom_message }}">
+                                                                        <i class="bi bi-pencil"></i>
+                                                                    </button>
+                                                                    {% if link.id != 1 %}
+                                                                    <button class="btn btn-sm btn-danger delete-link" data-id="{{ link.id }}">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </button>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <tr>
+                                                            <td colspan="6" class="text-center">Nenhum link personalizado</td>
+                                                        </tr>
+                                                    {% endif %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Aba de Ajuda -->
+                                    <div class="tab-pane fade" id="help" role="tabpanel" aria-labelledby="help-tab">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h3 class="h5 mb-3">Como utilizar o sistema</h3>
+                                                
+                                                <div class="mb-4">
+                                                    <h4 class="h6">1. Cadastro de Números</h4>
+                                                    <p>Adicione os números de WhatsApp que deseja usar para o redirecionamento. Use o formato internacional, sem espaços ou caracteres especiais (exemplo: 5511999998888).</p>
+                                                </div>
+                                                
+                                                <div class="mb-4">
+                                                    <h4 class="h6">2. Links Personalizados</h4>
+                                                    <p>Crie links personalizados para compartilhar com seus clientes. Você pode definir uma mensagem personalizada que será exibida antes do redirecionamento para o WhatsApp.</p>
+                                                </div>
+                                                
+                                                <div class="mb-4">
+                                                    <h4 class="h6">3. Mensagens Personalizadas</h4>
+                                                    <p>Para cada link, defina uma mensagem que será exibida ao cliente antes de ser redirecionado para o WhatsApp. Isso é útil para instruções específicas ou informações sobre determinada campanha.</p>
+                                                </div>
+                                                
+                                                <div class="mb-4">
+                                                    <h4 class="h6">4. Compartilhamento</h4>
+                                                    <p>Compartilhe os links gerados em suas redes sociais, site ou materiais promocionais. Cada cliente que acessar o link será direcionado para um número diferente, distribuindo os atendimentos igualmente entre os números cadastrados.</p>
+                                                </div>
+                                                
+                                                <div class="alert alert-info">
+                                                    <h4 class="h6">Dica:</h4>
+                                                    <p class="mb-0">O link padrão é acessível através da página inicial. Você pode criar links adicionais com nomes personalizados para diferentes campanhas ou canais de marketing.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para Adicionar Número -->
+    <div class="modal fade" id="addNumberModal" tabindex="-1" aria-labelledby="addNumberModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addNumberModalLabel">Adicionar Número de WhatsApp</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addNumberForm">
+                        <div class="mb-3">
+                            <label for="phoneNumber" class="form-label">Número de Telefone</label>
+                            <input type="text" class="form-control" id="phoneNumber" placeholder="5511999998888" required>
+                            <div class="form-text" style="color: #ffffff !important;">Digite o número no formato internacional, sem espaços ou caracteres especiais.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Descrição (opcional)</label>
+                            <input type="text" class="form-control" id="description" placeholder="Ex: Atendimento Comercial">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" id="saveNumber">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para Adicionar Link -->
+    <div class="modal fade" id="addLinkModal" tabindex="-1" aria-labelledby="addLinkModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addLinkModalLabel">Criar Link Personalizado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addLinkForm">
+                        <div class="input-group mb-3">
+                            <span class="input-group-text">{{ request.host_url }}{{ session.user_id }}/</span>
+                            <input type="text" class="form-control" id="linkName" name="linkName" placeholder="nome-do-link" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="customMessage" class="form-label">Mensagem Personalizada</label>
+                            <textarea class="form-control" id="customMessage" rows="3" placeholder="Digite a mensagem que aparecerá antes do redirecionamento">Você será redirecionado para um de nossos atendentes. Aguarde um momento...</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">URL do Link</label>
+                            <div class="input-group">
+                                <span class="input-group-text">{{ request.host_url }}{{ session.user_id }}/</span>
+                                <span class="form-control" id="previewLink">seu-link</span>
+                            </div>
+                            <div class="form-text" style="color: #ffffff !important;">Este será o URL que você compartilhará com seus clientes.</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" id="saveLink">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para Editar Link -->
+    <div class="modal fade" id="editLinkModal" tabindex="-1" aria-labelledby="editLinkModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editLinkModalLabel">Editar Link Personalizado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editLinkForm">
+                        <input type="hidden" id="editLinkId">
+                        <div class="input-group mb-3">
+                            <span class="input-group-text">{{ request.host_url }}{{ session.user_id }}/</span>
+                            <input type="text" class="form-control" id="editLinkName" name="editLinkName" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editCustomMessage" class="form-label">Mensagem Personalizada</label>
+                            <textarea class="form-control" id="editCustomMessage" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">URL do Link</label>
+                            <div class="input-group">
+                                <span class="input-group-text">{{ request.host_url }}{{ session.user_id }}/</span>
+                                <span class="form-control" id="editPreviewLink">seu-link</span>
+                            </div>
+                            <div class="form-text" style="color: #ffffff !important;">Este será o URL que você compartilhará com seus clientes.</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="updateLink">Atualizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html> 

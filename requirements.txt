@@ -1,0 +1,8 @@
+Flask==2.0.1
+gunicorn==20.1.0
+Werkzeug==2.0.3
+requests==2.32.3
+ipapi==1.0.4
+
+# PostgreSQL
+psycopg2-binary>=2.9.5

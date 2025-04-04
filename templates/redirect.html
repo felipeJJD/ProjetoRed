@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecionamento WhatsApp</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+        .loading {
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #25d366;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <!-- Redirecionamento imediato -->
+    <meta http-equiv="refresh" content="0;url={{ whatsapp_url }}">
+</head>
+<body>
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Redirecionando para o WhatsApp...</p>
+    </div>
+
+    <script>
+        // Redirecionamento via JavaScript para garantir compatibilidade
+        window.location.href = "{{ whatsapp_url }}";
+    </script>
+</body>
+</html>

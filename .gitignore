@@ -1,0 +1,31 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ambiente virtual
+.venv
+venv/
+ENV/
+
+# Arquivos de banco de dados SQLite
+*.db
+*.db-journal
+
+# Logs e arquivos temporários
+logs/
+*.log
+*.tmp
+
+# Arquivos de ambiente
+.env
+
+# Arquivos específicos do sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos do IDE
+.idea/
+.vscode/
+*.swp
+*.swo 

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REDIZAP - Redirecionador de WhatsApp</title>
+    <!-- Favicon -->
+    <link rel="icon" href="{{ url_for('static', filename='img/logos/Subtract.png') }}" type="image/png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        
+        .logo-container {
+            margin-bottom: 25px;
+        }
+        
+        .logo-container img {
+            max-width: 200px;
+            height: auto;
+        }
+        
+        .card {
+            border-radius: 15px;
+            overflow: hidden;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+        }
+        
+        .card-header {
+            background: linear-gradient(to right, #25d366, #128C7E);
+            padding: 20px;
+        }
+        
+        .card-body {
+            background-color: #1e1e1e;
+        }
+        
+        .card-footer {
+            background-color: #252525;
+            border-top: 1px solid #333;
+        }
+        
+        .btn-success {
+            background-color: #25d366;
+            border-color: #25d366;
+            font-weight: bold;
+            padding: 12px 24px;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-success:hover {
+            background-color: #128C7E;
+            border-color: #128C7E;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-outline-secondary {
+            color: #25d366;
+            border-color: #25d366;
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: #25d366;
+            color: #000;
+            border-color: #25d366;
+        }
+        
+        .icon-logo {
+            height: 30px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        .text-muted {
+            color: #aaaaaa !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center mt-5">
+            <div class="col-md-8 text-center">
+                <div class="logo-container">
+                    <img src="{{ url_for('static', filename='img/logos/Group 1171275296.png') }}" alt="REDZAP Logo" class="img-fluid">
+                </div>
+                
+                <div class="card shadow">
+                    <div class="card-header text-white">
+                        <h1 class="card-title">Redirecionador de WhatsApp</h1>
+                    </div>
+                    <div class="card-body">
+                        <p class="lead">Bem-vindo ao nosso serviço de redirecionamento de WhatsApp!</p>
+                        <p>Para liberar seu acesso imediatamente, envie uma mensagem para nosso suporte exclusivo via WhatsApp.</p>
+                        
+                         <div class="mt-4">
+    <a href="[http://redizap.shop/2/whatsapp"](http://redizap.shop/2/whatsapp") class="btn btn-success btn-lg" target="_blank">
+        <img src="{{ url_for('static', filename='img/logos/Subtract-3.png') }}" alt="WhatsApp" class="icon-logo">
+        Falar com Atendente
+    </a>
+</div>
+                        
+                        <div class="mt-4">
+                            <p class="text-muted small">Você será redirecionado para um de nossos atendentes disponíveis.</p>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">Área do Administrador</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

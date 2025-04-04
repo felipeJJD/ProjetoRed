@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - REDIZAP</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logos/Subtract.png') }}" type="image/png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin=""/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+    <style>
+        :root {
+            --primary-color: #25d366;
+            --secondary-color: #128C7E;
+            --dark-color: #1a1a1a;
+            --light-color: #f8f9fa;
+            --success-color: #28a745;
+        }
+        
+        body {
+            background-color: var(--dark-color);
+            color: var(--light-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Sobrescrever a classe text-muted para o dashboard */
+        .text-muted, small.text-muted, span.text-muted, div.text-muted, p.text-muted {
+            color: #ffffff !important;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            background-color: #212529;
+        }
+        
+        .card-header {
+            background-color: #2c3034;
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            padding: 15px;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
+        .bg-dark-green {
+            background-color: #1a1a1a;
+            color: var(--primary-color);
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .navbar-brand img {
+            height: 40px;
+        }
+        
+        .sidebar {
+            background-color: #1a1a1a;
+            color: white;
+            min-height: 100vh;
+            padding-top: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .sidebar .nav-link {
+            color: #ddd;
+            padding: 10px 20px;
+            margin: 5px 0;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+            transform: translateX(5px);
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 10px;
+        }
+        
+        .main-content {
+            padding: 20px;
+        }
+        
+        .stats-card {
+            background-color: #212529;
+            border-left: 5px solid var(--primary-color);
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .stats-card .icon {
+            font-size: 3rem;
+            color: var(--primary-color);
+        }
+        
+        .stats-card .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 300px;
+            padding: 15px;
+            border-radius: 10px;
+            width: 100% !important;
+        }
+        
+        .table {
+            color: var(--light-color);
+        }
+        
+        .table-striped > tbody > tr:nth-of-type(odd) > * {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--light-color);
+        }
+        
+        .btn-success {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-success:hover, .btn-success:focus {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .form-control, .form-select {
+            background-color: #2c3034;
+            border-color: #444;
+            color: white;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            background-color: #2c3034;
+            color: white;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.25rem rgba(37, 211, 102, 0.25);
+        }
+        
+        .input-group-text {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+        }
+        
+        .logo-text {
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            letter-spacing: 1px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .logo-container img {
+            height: 50px;
+            margin-right: 10px;
+        }
+        
+        #mapChart {
+            height: 300px;
+            width: 100%;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Fix para garantir que os gráficos sejam visíveis */
+        canvas {
+            width: 100% !important;
+            max-height: 300px;
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary-color);
+        }
+        
+        /* Tabela de atividades recentes com scroll */
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 5px;
+            border: 1px solid #333;
+            margin-bottom: 10px;
+        }
+        
+        .table-container thead {
+            position: sticky;
+            top: 0;
+            background-color: #212529;
+            z-index: 1;
+        }
+        
+        .table-container thead th {
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
+        /* Estilo para o header com logo */
+        .header-logo {
+            max-height: 40px;
+            margin-right: 15px;
+        }
+        
+        .page-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 sidebar">
+                <div class="logo-container mb-4 ps-3 pt-3">
+                    <img src="{{ url_for('static', filename='img/logos/Group 1171275299.png') }}" alt="REDZAP Logo" class="img-fluid" style="max-width: 180px;">
+                </div>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('dashboard') }}">
+                            <i class="bi bi-graph-up"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin') }}">
+                            <i class="bi bi-gear"></i> Administração
+                        </a>
+                    </li>
+                    {% if session.username == 'felipe' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_backup') }}">
+                            <i class="bi bi-database"></i> Backup
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_usuarios') }}">
+                            <i class="bi bi-people"></i> Usuários
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="bi bi-house"></i> Página Inicial
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            <i class="bi bi-box-arrow-right"></i> Sair
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="mt-5 ps-3">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-whatsapp me-2" style="font-size: 2rem; color: var(--primary-color);"></i>
+                        <div>
+                            <p class="mb-0">Precisa de ajuda?</p>
+                            <small>Acione nossa equipe no WhatsApp</small>
+                        </div>
+                    </div>
+                    <a href="https://wa.me/5541987425246" target="_blank" class="btn btn-sm btn-primary">Chamar agora</a>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col-md-10 main-content">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="page-header">
+                        <img src="{{ url_for('static', filename='img/logos/Subtract-2.png') }}" alt="REDZAP Icon" class="header-logo">
+                        <h2>Dashboard</h2>
+                    </div>
+                    <div>
+                        <span class="badge bg-light text-dark me-2">
+                            <i class="bi bi-person-circle me-1"></i> {{ session.username }}
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Welcome Card -->
+                <div class="card mb-4">
+                    <div class="card-body bg-dark-green p-4">
+                        <div class="row align-items-center">
+                            <div class="col-md-1 text-center d-none d-md-block">
+                                <img src="{{ url_for('static', filename='img/logos/Subtract-1.png') }}" alt="REDZAP Icon" style="width: 40px; height: auto;">
+                            </div>
+                            <div class="col-md-11">
+                                <h3 class="mb-2">Seja Bem Vindo!</h3>
+                                <p class="mb-0">Crie seus links e acompanhe o crescimento do seu negócio aqui no REDIZAP.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Date Filter -->
+                <div class="date-filter mb-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Selecione seu link</label>
+                            <select class="form-select" id="linkSelector">
+                                <option value="all">Todos os links</option>
+                                {% for link in links %}
+                                <option value="{{ link.id }}">{{ link.link_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Intervalo de datas</label>
+                            <div class="input-group">
+                                <input type="date" class="form-control" id="startDate">
+                                <span class="input-group-text">-</span>
+                                <input type="date" class="form-control" id="endDate">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stats Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5>Total de Cliques</h5>
+                                    <div class="stat-value" id="totalClicks">0</div>
+                                </div>
+                                <div class="icon">
+                                    <i class="bi bi-mouse"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5>Média Diária</h5>
+                                    <div class="stat-value" id="dailyAverage">0</div>
+                                </div>
+                                <div class="icon">
+                                    <i class="bi bi-bar-chart"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5>Links Ativos</h5>
+                                    <div class="stat-value" id="activeLinks">0</div>
+                                </div>
+                                <div class="icon">
+                                    <i class="bi bi-link-45deg"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5>Números Ativos</h5>
+                                    <div class="stat-value" id="activeNumbers">0</div>
+                                </div>
+                                <div class="icon">
+                                    <i class="bi bi-phone"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Charts Row -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Acessos por Chip (Número de Telefone)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Número</th>
+                                                <th>Descrição</th>
+                                                <th>Total de Acessos</th>
+                                                <th>Desempenho</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="numberStats">
+                                            <!-- Será preenchido via JavaScript -->
+                                            <tr>
+                                                <td colspan="4" class="text-center">Carregando dados...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Second Charts Row -->
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Mapa de Cliques</h5>
+                            </div>
+                            <div class="card-body text-center p-4">
+                                <div id="mapChart"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Activity -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Atividade Recente</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Data/Hora</th>
+                                        <th>Link</th>
+                                        <th>Número</th>
+                                        <th>IP</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentActivity">
+                                    <!-- Recent activity will be loaded here -->
+                                    <tr>
+                                        <td colspan="4" class="text-center">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Carregando...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-center mt-3">
+                            <button id="loadMoreActivity" class="btn btn-outline-light">
+                                <i class="bi bi-arrow-down-circle me-1"></i> Carregar mais
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Função global para formatar data como YYYY-MM-DD
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default date range (today as default)
+            const today = new Date();
+            
+            // Set today as default for both start and end date
+            const formattedToday = formatDate(today);
+            
+            // Set values
+            document.getElementById('startDate').value = formattedToday;
+            document.getElementById('endDate').value = formattedToday;
+            
+            // Inicialização do mapa antes de carregar os dados
+            initializeMap();
+            
+            // Variáveis para paginação da atividade recente
+            let currentPage = 1;
+            const itemsPerPage = 10;
+            
+            // Pequeno atraso para carregar dados
+            setTimeout(() => {
+                // Load initial data
+                loadNumberStats();
+                loadRecentActivity(currentPage); // Passa a página atual
+                updateStats();
+            }, 300);
+            
+            // Event listeners for filters
+            document.getElementById('linkSelector').addEventListener('change', function() {
+                console.log('Link selecionado alterado:', this.value);
+                loadNumberStats();
+                currentPage = 1; // Reset to first page
+                loadRecentActivity(currentPage);
+                updateMapMarkers();
+            });
+            
+            document.getElementById('startDate').addEventListener('change', function() {
+                // Validar se a data não é futura
+                const selectedDate = new Date(this.value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Resetar horas para comparação apenas de datas
+                
+                if (selectedDate > today) {
+                    console.warn('Data inicial futura detectada, ajustando para hoje');
+                    this.value = formatDate(today);
+                    alert('Não é possível selecionar uma data futura. A data foi ajustada para hoje.');
+                }
+                
+                console.log('Data inicial alterada:', this.value);
+                loadNumberStats();
+                currentPage = 1; // Reset to first page
+                loadRecentActivity(currentPage);
+                updateMapMarkers();
+            });
+            
+            document.getElementById('endDate').addEventListener('change', function() {
+                // Validar se a data não é futura
+                const selectedDate = new Date(this.value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Resetar horas para comparação apenas de datas
+                
+                if (selectedDate > today) {
+                    console.warn('Data final futura detectada, ajustando para hoje');
+                    this.value = formatDate(today);
+                    alert('Não é possível selecionar uma data futura. A data foi ajustada para hoje.');
+                }
+                
+                // Verificar se a data final é anterior à data inicial
+                const startDate = new Date(document.getElementById('startDate').value);
+                if (selectedDate < startDate) {
+                    console.warn('Data final anterior à data inicial, ajustando');
+                    this.value = document.getElementById('startDate').value;
+                    alert('A data final não pode ser anterior à data inicial. A data foi ajustada.');
+                }
+                
+                console.log('Data final alterada:', this.value);
+                loadNumberStats();
+                currentPage = 1; // Reset to first page
+                loadRecentActivity(currentPage);
+                updateMapMarkers();
+            });
+            
+            // Botão carregar mais
+            document.getElementById('loadMoreActivity').addEventListener('click', function() {
+                currentPage++; // Increment page
+                loadRecentActivity(currentPage, true); // Append=true
+            });
+        });
+        
+        // Define map variable in global scope
+        let clickMap;
+        
+        // Função para formatar número de telefone
+        function formatPhoneNumber(phone) {
+            // Remove caracteres não numéricos
+            const cleanPhone = phone.replace(/\D/g, '');
+            
+            // Verifica se é um número internacional (mínimo 10 dígitos)
+            if (cleanPhone.length >= 10) {
+                // Formato para números brasileiros (assumindo código de país +55)
+                if (cleanPhone.startsWith('55') && cleanPhone.length >= 12) {
+                    const countryCode = cleanPhone.substring(0, 2);
+                    const areaCode = cleanPhone.substring(2, 4);
+                    const firstPart = cleanPhone.substring(4, 9);
+                    const secondPart = cleanPhone.substring(9);
+                    return `+${countryCode} (${areaCode}) ${firstPart}-${secondPart}`;
+                }
+                // Formato genérico para outros números internacionais
+                else {
+                    return `+${cleanPhone}`;
+                }
+            }
+            
+            // Retornar o número como está se não puder formatar
+            return phone;
+        }
+        
+        function initializeMap() {
+            // Certifique-se de que o elemento mapChart existe
+            const mapElement = document.getElementById('mapChart');
+            if (!mapElement) return;
+            
+            // Initialize map
+            clickMap = L.map('mapChart').setView([-14.235, -51.925], 4);  // Brazil centered
+            
+            // Add tile layer (use a dark theme)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(clickMap);
+            
+            // Carregar dados iniciais para o mapa após um pequeno atraso
+            setTimeout(() => {
+                // Buscar dados para o mapa com os filtros padrões
+                updateMapMarkers();
+                clickMap.invalidateSize();
+            }, 500);
+        }
+        
+        function loadNumberStats() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const linkId = document.getElementById('linkSelector').value;
+            
+            console.log(`Carregando estatísticas por chip: início=${startDate}, fim=${endDate}`);
+            
+            // Verificar se as datas estão definidas, caso contrário usar a data atual
+            const today = formatDate(new Date());
+            const queryStartDate = startDate || today;
+            const queryEndDate = endDate || today;
+            
+            // Fetch data from API
+            fetch(`/api/stats/by-number?start_date=${queryStartDate}&end_date=${queryEndDate}&link_id=${linkId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro na resposta da API: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Dados recebidos:', data);
+                    
+                    // Preencher a tabela de estatísticas por número
+                    const tableBody = document.getElementById('numberStats');
+                    tableBody.innerHTML = '';
+                    
+                    if (data.number_stats && data.number_stats.length > 0) {
+                        // Calcular o número máximo de acessos para a barra de progresso
+                        const maxAccess = Math.max(...data.number_stats.map(item => item.access_count));
+                        
+                        data.number_stats.forEach(item => {
+                            const row = document.createElement('tr');
+                            
+                            // Calcular a porcentagem para a barra de progresso
+                            const percentage = maxAccess > 0 ? (item.access_count / maxAccess) * 100 : 0;
+                            
+                            // Formatar o número de telefone com espaços para melhor legibilidade
+                            const formattedNumber = formatPhoneNumber(item.phone_number);
+                            
+                            row.innerHTML = `
+                                <td><strong>${formattedNumber}</strong></td>
+                                <td>${item.description}</td>
+                                <td><span class="badge bg-success rounded-pill">${item.access_count}</span></td>
+                                <td>
+                                    <div class="progress" style="height: 10px; background-color: rgba(255,255,255,0.1);">
+                                        <div class="progress-bar bg-success" role="progressbar" 
+                                            style="width: ${percentage}%;" 
+                                            aria-valuenow="${percentage}" 
+                                            aria-valuemin="0" 
+                                            aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                </td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+                    } else {
+                        tableBody.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center">Nenhum dado disponível</td>
+                            </tr>
+                        `;
+                    }
+                    
+                    // Update map markers if map is initialized
+                    if (clickMap) {
+                        // In a real implementation, you would use geolocation data
+                        // Here we're just updating the demo markers
+                        updateMapMarkers();
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar estatísticas por chip:', error);
+                    document.getElementById('numberStats').innerHTML = `
+                        <tr>
+                            <td colspan="4" class="text-center text-danger">
+                                Erro ao carregar dados: ${error.message}
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+        
+        function loadRecentActivity(page = 1, append = false) {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const linkId = document.getElementById('linkSelector').value;
+            
+            // Verificar se as datas estão definidas, caso contrário usar a data atual
+            const today = formatDate(new Date());
+            const queryStartDate = startDate || today;
+            const queryEndDate = endDate || today;
+            
+            // Mostrar indicador de carregamento se não estiver anexando
+            if (!append) {
+                const activityContainer = document.getElementById('recentActivity');
+                activityContainer.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            // Construir a URL com os parâmetros
+            const apiUrl = new URL('/api/redirects/recent', window.location.origin);
+            
+            // Sempre incluir estes parâmetros
+            apiUrl.searchParams.set('limit', '10');
+            apiUrl.searchParams.set('page', page.toString());
+            
+            // Sempre incluir link_id, mesmo que seja 'all'
+            apiUrl.searchParams.set('link_id', linkId || 'all');
+            
+            // Sempre incluir as datas (com fallback para hoje se não estiverem definidas)
+            apiUrl.searchParams.set('start_date', queryStartDate);
+            apiUrl.searchParams.set('end_date', queryEndDate);
+            // Se temos datas definidas, solicitar todos os registros
+            apiUrl.searchParams.set('all', 'true');
+            
+            console.log('Buscando atividades recentes:', apiUrl.toString());
+            
+            fetch(apiUrl.toString())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro na resposta da API: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Dados recebidos:', data);
+                    
+                    const activityContainer = document.getElementById('recentActivity');
+                    const loadMoreBtn = document.getElementById('loadMoreActivity');
+                    
+                    // Se não for para anexar, limpe o container
+                    if (!append) {
+                        activityContainer.innerHTML = '';
+                    } else {
+                        // Remove loading indicator if it exists (when appending)
+                        const loadingRow = activityContainer.querySelector('.spinner-border')?.closest('tr');
+                        if (loadingRow) {
+                            loadingRow.remove();
+                        }
+                    }
+                    
+                    // Verificar se temos resultados
+                    const results = data.results || [];
+                    
+                    if (results.length > 0) {
+                        // Adicionar cada registro à tabela
+                        results.forEach(redirect => {
+                            const row = document.createElement('tr');
+                            
+                            // Formatar a data
+                            let redirectDate;
+                            try {
+                                // Verificar se já é um objeto Date válido
+                                if (redirect.redirect_time instanceof Date && !isNaN(redirect.redirect_time)) {
+                                    redirectDate = redirect.redirect_time;
+                                } else {
+                                    // Tentar criar um objeto Date a partir da string
+                                    redirectDate = new Date(redirect.redirect_time);
+                                    
+                                    // Se a data for inválida, tenta novamente com formato alternativo
+                                    if (isNaN(redirectDate.getTime())) {
+                                        // Tentar formato ISO sem Z
+                                        const dateStr = redirect.redirect_time.replace('Z', '').replace('T', ' ');
+                                        const [datePart, timePart] = dateStr.split(' ');
+                                        const [year, month, day] = datePart.split('-');
+                                        const [hour, minute, second] = timePart.split(':');
+                                        
+                                        redirectDate = new Date(year, month-1, day, hour, minute, second);
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Erro ao parsear data:', e, redirect.redirect_time);
+                                redirectDate = new Date(); // Fallback para data atual
+                            }
+                            
+                            // Formatar a data para exibição
+                            const formattedDate = new Intl.DateTimeFormat('pt-BR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                hour12: false
+                            }).format(redirectDate);
+                            
+                            // Formatar o número de telefone
+                            const formattedPhone = formatPhoneNumber(redirect.phone_number);
+                            
+                            // Preencher as células
+                            row.innerHTML = `
+                                <td>
+                                    <small class="text-muted">${formattedDate}</small>
+                                    ${redirect.multiple_clicks ? `<span class="badge bg-warning text-dark ms-2">${redirect.click_count}x</span>` : ''}
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary me-1">${redirect.link_name}</span>
+                                </td>
+                                <td>
+                                    <span class="d-block">${formattedPhone}</span>
+                                    <small class="text-muted">${redirect.number_description || ''}</small>
+                                </td>
+                                <td>
+                                    <small>${redirect.ip_address}</small>
+                                </td>
+                            `;
+                            
+                            activityContainer.appendChild(row);
+                        });
+                        
+                        // Mostrar ou ocultar o botão "Carregar mais" dependendo se há mais dados
+                        const hasMore = !data.show_all && (data.total_records > (data.page * data.limit));
+                        loadMoreBtn.style.display = hasMore ? 'block' : 'none';
+                    } else {
+                        if (!append) { // Só mostra "sem dados" se não estiver anexando
+                            activityContainer.innerHTML = `
+                                <tr>
+                                    <td colspan="4" class="text-center">Nenhuma atividade recente para o período selecionado</td>
+                                </tr>
+                            `;
+                        }
+                        // Ocultar botão quando não há mais dados
+                        loadMoreBtn.style.display = 'none';
+                    }
+                    
+                    // Adicionar informação sobre o total de registros (se não estiver anexando)
+                    if (!append && data.total_records > 0) {
+                        // Adicionar contador no topo da tabela
+                        const infoRow = document.createElement('tr');
+                        infoRow.classList.add('bg-dark', 'text-muted');
+                        infoRow.innerHTML = `
+                            <td colspan="4" class="text-center">Total de registros: ${data.total_records}</td>
+                        `;
+                        activityContainer.insertBefore(infoRow, activityContainer.firstChild);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar atividades recentes:', error);
+                    document.getElementById('recentActivity').innerHTML = `
+                        <tr>
+                            <td colspan="4" class="text-center text-danger">
+                                Erro ao carregar atividades recentes: ${error.message}
+                            </td>
+                        </tr>
+                    `;
+                    document.getElementById('loadMoreActivity').style.display = 'none';
+                });
+        }
+        
+        function updateMapMarkers() {
+            // Obter parâmetros de filtro atuais
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const linkId = document.getElementById('linkSelector').value;
+            
+            // Verificar se as datas estão definidas, caso contrário usar a data atual
+            const today = formatDate(new Date());
+            const queryStartDate = startDate || today;
+            const queryEndDate = endDate || today;
+            
+            // Construir URL com os parâmetros de filtro
+            let url = '/api/stats/map';
+            // Sempre incluir datas
+            url += `?start_date=${queryStartDate}&end_date=${queryEndDate}`;
+            if (linkId && linkId !== 'all') {
+                url += `&link_id=${linkId}`;
+            }
+            
+            // Remover todos os marcadores existentes do mapa
+            clickMap.eachLayer(function(layer) {
+                if (layer instanceof L.Marker) {
+                    clickMap.removeLayer(layer);
+                }
+            });
+            
+            // Adicionar o tile layer novamente se foi removido
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(clickMap);
+            
+            // Fazer a requisição para obter os dados do mapa
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.locations && data.locations.length > 0) {
+                        // Adicionar marcadores para cada localização
+                        data.locations.forEach(location => {
+                            const size = Math.min(50, Math.max(15, location.count / 2));
+                            const icon = L.divIcon({
+                                className: 'custom-marker',
+                                html: `<div style="background-color: rgba(37, 211, 102, 0.7); width: ${size}px; height: ${size}px; border-radius: 50%; border: 2px solid white;"></div>`,
+                                iconSize: [size, size],
+                                iconAnchor: [size/2, size/2]
+                            });
+                            
+                            L.marker([location.lat, location.lng], {icon: icon})
+                                .addTo(clickMap)
+                                .bindPopup(`<b>${location.count}</b> cliques: ${location.name}`);
+                        });
+                        
+                        // Centralizar o mapa no Brasil
+                        clickMap.setView([-14.235, -51.925], 4);
+                    } else {
+                        // Se não houver dados, mostrar marcador informativo
+                        const icon = L.divIcon({
+                            className: 'custom-marker',
+                            html: `<div style="background-color: rgba(200, 200, 200, 0.7); width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold;">?</div>`,
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 15]
+                        });
+                        
+                        L.marker([-14.235, -51.925], {icon: icon})
+                            .addTo(clickMap)
+                            .bindPopup("Nenhum dado disponível para o filtro selecionado");
+                    }
+                    
+                    // Garantir que o mapa seja renderizado corretamente
+                    clickMap.invalidateSize();
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar dados do mapa:', error);
+                    
+                    // Em caso de erro, mostrar marcador informativo
+                    const icon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="background-color: rgba(255, 0, 0, 0.7); width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold;">!</div>`,
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    });
+                    
+                    L.marker([-14.235, -51.925], {icon: icon})
+                        .addTo(clickMap)
+                        .bindPopup("Erro ao carregar dados do mapa");
+                    
+                    // Centralizar o mapa no Brasil
+                    clickMap.setView([-14.235, -51.925], 4);
+                });
+        }
+        
+        function updateStats() {
+            // Obter parâmetros de filtro atuais
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const linkId = document.getElementById('linkSelector').value;
+            
+            // Verificar se as datas estão definidas, caso contrário usar a data atual
+            const today = formatDate(new Date());
+            const queryStartDate = startDate || today;
+            const queryEndDate = endDate || today;
+            
+            // Construir URL com os parâmetros de filtro
+            let url = '/api/stats/summary';
+            // Sempre incluir datas
+            url += `?start_date=${queryStartDate}&end_date=${queryEndDate}`;
+            if (linkId && linkId !== 'all') {
+                url += `&link_id=${linkId}`;
+            }
+            
+            // Fazer a requisição para obter as estatísticas
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // Atualizar os valores nos cards
+                    document.getElementById('totalClicks').textContent = data.total_clicks;
+                    document.getElementById('dailyAverage').textContent = data.daily_average;
+                    document.getElementById('activeLinks').textContent = data.active_links;
+                    document.getElementById('activeNumbers').textContent = data.active_numbers;
+                })
+                .catch(error => {
+                    console.error('Erro ao atualizar estatísticas:', error);
+                });
+        }
+    </script>
+</body>
+</html>

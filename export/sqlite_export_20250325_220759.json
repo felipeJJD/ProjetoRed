@@ -1,0 +1,376 @@
+{
+  "whatsapp_numbers_old": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "phone_number",
+        "type": "TEXT"
+      },
+      {
+        "name": "description",
+        "type": "TEXT"
+      }
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "phone_number": "5541987425246",
+        "description": "meu"
+      },
+      {
+        "id": 2,
+        "phone_number": "5541999326949",
+        "description": "segundo"
+      },
+      {
+        "id": 4,
+        "phone_number": "5521996544459",
+        "description": "Pedrao"
+      }
+    ]
+  },
+  "custom_links_old": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "link_name",
+        "type": "TEXT"
+      },
+      {
+        "name": "is_active",
+        "type": "INTEGER"
+      },
+      {
+        "name": "custom_message",
+        "type": "TEXT"
+      }
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "link_name": "padrao",
+        "is_active": 1,
+        "custom_message": null
+      },
+      {
+        "id": 4,
+        "link_name": "PedroTestefejao",
+        "is_active": 1,
+        "custom_message": "fala comigo bora fazer um fejao em 10 minutos"
+      }
+    ]
+  },
+  "users": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "username",
+        "type": "TEXT"
+      },
+      {
+        "name": "password",
+        "type": "TEXT"
+      },
+      {
+        "name": "fullname",
+        "type": "TEXT"
+      },
+      {
+        "name": "created_at",
+        "type": "TIMESTAMP"
+      }
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "username": "pedro",
+        "password": "pbkdf2:sha256:260000$XUrIYooGySouQAmr$8b4b906bcf42fbee26ac5c5f0869080238523fede11a0a859c8effd7bdc77ad9",
+        "fullname": "Pedro Administrador",
+        "created_at": "2025-03-15 23:53:39"
+      },
+      {
+        "id": 2,
+        "username": "felipe",
+        "password": "pbkdf2:sha256:260000$bbESLujqRmdozHNn$0f6a4e5aa18547459040941b2d7d63dd8f8b9063f5c74f59d1f4619377d5afbc",
+        "fullname": "Felipe Administrador",
+        "created_at": "2025-03-15 23:53:39"
+      }
+    ]
+  },
+  "custom_links": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "link_name",
+        "type": "TEXT"
+      },
+      {
+        "name": "custom_message",
+        "type": "TEXT"
+      },
+      {
+        "name": "is_active",
+        "type": "INTEGER"
+      },
+      {
+        "name": "click_count",
+        "type": "INTEGER"
+      }
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "user_id": 1,
+        "link_name": "padrao",
+        "custom_message": null,
+        "is_active": 1,
+        "click_count": 0
+      },
+      {
+        "id": 4,
+        "user_id": 1,
+        "link_name": "PedroTestefejao",
+        "custom_message": "fala comigo bora fazer um fejao em 10 minutos",
+        "is_active": 1,
+        "click_count": 0
+      },
+      {
+        "id": 6,
+        "user_id": 2,
+        "link_name": "padrao",
+        "custom_message": "Ol\u00e1! Voc\u00ea ser\u00e1 redirecionado para um de nossos atendentes. Aguarde um momento...",
+        "is_active": 1,
+        "click_count": 0
+      },
+      {
+        "id": 31,
+        "user_id": 2,
+        "link_name": "promocao",
+        "custom_message": "Voc\u00ea ser\u00e1 redirecionado para um de nossos atendentes. Aguarde um momento...",
+        "is_active": 1,
+        "click_count": 11
+      }
+    ]
+  },
+  "whatsapp_numbers": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "user_id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "phone_number",
+        "type": "TEXT"
+      },
+      {
+        "name": "description",
+        "type": "TEXT"
+      },
+      {
+        "name": "redirect_count",
+        "type": "INTEGER"
+      },
+      {
+        "name": "is_active",
+        "type": "INTEGER"
+      },
+      {
+        "name": "last_used",
+        "type": "TIMESTAMP"
+      }
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "user_id": 1,
+        "phone_number": "5541987425246",
+        "description": "meu",
+        "redirect_count": 0,
+        "is_active": 1,
+        "last_used": null
+      },
+      {
+        "id": 2,
+        "user_id": 1,
+        "phone_number": "5541999326949",
+        "description": "segundo",
+        "redirect_count": 0,
+        "is_active": 1,
+        "last_used": null
+      },
+      {
+        "id": 4,
+        "user_id": 1,
+        "phone_number": "5521996544459",
+        "description": "Pedrao",
+        "redirect_count": 0,
+        "is_active": 1,
+        "last_used": null
+      },
+      {
+        "id": 6,
+        "user_id": 2,
+        "phone_number": "5541999326949",
+        "description": "1",
+        "redirect_count": 3,
+        "is_active": 1,
+        "last_used": null
+      },
+      {
+        "id": 7,
+        "user_id": 2,
+        "phone_number": "5541987425246",
+        "description": "2",
+        "redirect_count": 3,
+        "is_active": 1,
+        "last_used": null
+      },
+      {
+        "id": 8,
+        "user_id": 2,
+        "phone_number": "5541999751082",
+        "description": "3",
+        "redirect_count": 5,
+        "is_active": 1,
+        "last_used": null
+      }
+    ]
+  },
+  "redirects": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "number_id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "link_id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "timestamp",
+        "type": "TIMESTAMP"
+      }
+    ],
+    "rows": [
+      {
+        "id": 1,
+        "number_id": 8,
+        "link_id": 31,
+        "timestamp": "2025-03-16 00:52:37"
+      },
+      {
+        "id": 2,
+        "number_id": 6,
+        "link_id": 31,
+        "timestamp": "2025-03-16 00:52:55"
+      },
+      {
+        "id": 3,
+        "number_id": 6,
+        "link_id": 31,
+        "timestamp": "2025-03-16 00:53:01"
+      },
+      {
+        "id": 4,
+        "number_id": 7,
+        "link_id": 31,
+        "timestamp": "2025-03-16 00:53:53"
+      },
+      {
+        "id": 5,
+        "number_id": 7,
+        "link_id": 31,
+        "timestamp": "2025-03-16 00:53:53"
+      },
+      {
+        "id": 6,
+        "number_id": 8,
+        "link_id": 31,
+        "timestamp": "2025-03-16 00:53:59"
+      },
+      {
+        "id": 7,
+        "number_id": 8,
+        "link_id": 31,
+        "timestamp": "2025-03-16 00:54:00"
+      },
+      {
+        "id": 8,
+        "number_id": 7,
+        "link_id": 31,
+        "timestamp": "2025-03-16 00:54:05"
+      },
+      {
+        "id": 9,
+        "number_id": 8,
+        "link_id": 31,
+        "timestamp": "2025-03-16 00:54:06"
+      },
+      {
+        "id": 10,
+        "number_id": 8,
+        "link_id": 31,
+        "timestamp": "2025-03-16 00:54:12"
+      },
+      {
+        "id": 11,
+        "number_id": 6,
+        "link_id": 31,
+        "timestamp": "2025-03-16 00:54:13"
+      }
+    ]
+  },
+  "redirect_logs": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "link_id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "number_id",
+        "type": "INTEGER"
+      },
+      {
+        "name": "redirect_time",
+        "type": "TIMESTAMP"
+      },
+      {
+        "name": "ip_address",
+        "type": "TEXT"
+      },
+      {
+        "name": "user_agent",
+        "type": "TEXT"
+      }
+    ],
+    "rows": []
+  }
+}

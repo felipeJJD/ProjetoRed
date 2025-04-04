@@ -1,0 +1,35 @@
+/* Sobrescreve variáveis do Bootstrap */
+:root {
+  --bs-secondary-color: #ffffff !important;
+  --bs-secondary-color-rgb: 255, 255, 255 !important;
+  --bs-tertiary-color: #ffffff !important;
+  --bs-tertiary-color-rgb: 255, 255, 255 !important;
+}
+
+/* Sobrescreve diretamente a classe text-muted */
+.text-muted {
+  --bs-text-opacity: 1;
+  color: #ffffff !important;
+}
+
+/* Adiciona regras com alta especificidade para garantir aplicação */
+body .text-muted, 
+html .text-muted, 
+body .form-text, 
+html .form-text {
+  color: #ffffff !important;
+}
+
+/* Regras para elementos específicos com a classe text-muted */
+span.text-muted, 
+small.text-muted, 
+div.text-muted, 
+p.text-muted {
+  color: #ffffff !important;
+}
+
+/* Sobreescrita da tabela listrada para texto branco */
+.table-striped>tbody>tr:nth-of-type(odd)>* {
+  --bs-table-accent-bg: var(--bs-table-striped-bg);
+  color: #ffffff !important;
+} 

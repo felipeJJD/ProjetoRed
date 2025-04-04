@@ -1,0 +1,67 @@
+/* Estilos globais */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Estilos da página inicial */
+.card {
+    border-radius: 10px;
+    border: none;
+    overflow: hidden;
+}
+
+.card-header {
+    font-weight: 600;
+}
+
+.btn-success {
+    background-color: #25d366;
+    border-color: #25d366;
+}
+
+.btn-success:hover, .btn-success:focus {
+    background-color: #128C7E;
+    border-color: #128C7E;
+}
+
+/* Notificações */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 999999;
+}
+
+/* Estilos da página de admin */
+.tab-content {
+    padding-top: 1rem;
+}
+
+.table td, .table th {
+    vertical-align: middle;
+}
+
+code {
+    background-color: #f1f1f1;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+/* Responsivo */
+@media (max-width: 576px) {
+    .card-title {
+        font-size: 1.5rem;
+    }
+}
+
+.text-muted {
+    --bs-text-opacity: 1;
+    color: #ffffff !important;
+}
+
+/* Sobrescrever qualquer instância de texto muted */
+.text-muted, .form-text, small.text-muted, span.text-muted, div.text-muted, p.text-muted {
+    color: #ffffff !important;
+}

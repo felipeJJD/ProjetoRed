@@ -1,12 +1,5 @@
-[build]
-builder = "nixpacks"
-buildCommand = "pip install -r requirements.txt"
-
-[deploy]
-startCommand = "gunicorn app:app --bind 0.0.0.0:$PORT"
-healthcheckPath = "/"
-healthcheckTimeout = 100
-
-[envs]
-PORT = "3333"
-FLASK_ENV = "production" 
+[environments]
+  production.postgres.DATABASE_URL = "${DATABASE_URL}"
+  production.env.USE_POSTGRES = "true"
+  production.BUILD_COMMAND = "pip install -r requirements.txt"
+  production.START_COMMAND = "gunicorn app:app"

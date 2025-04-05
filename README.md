@@ -101,18 +101,72 @@ Quando um usuário acessa um link personalizado:
 3. O usuário é redirecionado automaticamente para um dos números de WhatsApp cadastrados
 4. O usuário também pode clicar no botão para redirecionamento imediato
 
-## Estrutura do Projeto
+## Estrutura do Projeto (Nova Arquitetura MVC)
 
-- `app.py`: Aplicação principal Flask
-- `instance/whatsapp_redirect.db`: Banco de dados SQLite
-- `templates/`: Arquivos HTML
-  - `index.html`: Página inicial
-  - `login.html`: Página de login
-  - `admin.html`: Painel administrativo
-  - `redirect.html`: Página de redirecionamento
-- `static/`: Arquivos estáticos (CSS, JS, imagens)
-- `Procfile`: Configuração para deploy (Heroku)
-- `requirements.txt`: Dependências do projeto
+O projeto foi refatorado para seguir a arquitetura Model-View-Controller (MVC), com uma estrutura de diretórios clara e organizada:
+
+```
+/
+├── app/                    # Pacote principal da aplicação
+│   ├── controllers/        # Controladores que gerenciam a lógica de negócios
+│   │   ├── auth_controller.py
+│   │   ├── link_controller.py
+│   │   ├── number_controller.py
+│   │   └── redirect_controller.py
+│   ├── models/             # Modelos que representam entidades do banco de dados
+│   │   ├── custom_link.py
+│   │   ├── redirect_log.py
+│   │   ├── user.py
+│   │   └── whatsapp_number.py
+│   ├── routes/             # Rotas da aplicação (endpoints)
+│   │   ├── admin_routes.py
+│   │   ├── auth_routes.py
+│   │   └── redirect_routes.py
+│   ├── services/           # Serviços para operações complexas
+│   │   ├── analytics.py
+│   │   ├── balancer.py
+│   │   └── geolocation.py
+│   ├── error_handlers.py   # Tratadores de erros centralizados
+│   └── __init__.py         # Inicialização da aplicação Flask
+├── config/                 # Configurações da aplicação
+│   └── settings.py
+├── static/                 # Arquivos estáticos (CSS, JS, imagens)
+├── templates/              # Templates HTML
+├── utils/                  # Utilitários e helpers
+│   ├── db_adapter.py       # Adaptador de banco de dados
+│   └── init_db.py          # Script de inicialização do banco
+├── app.py                  # Arquivo original (mantido para referência)
+├── main.py                 # Novo ponto de entrada da aplicação
+└── requirements.txt        # Dependências do projeto
+```
+
+### Componentes Principais
+
+- **Models**: Encapsulam a lógica de acesso a dados e representam as entidades do banco.
+- **Views**: Implementadas como templates no diretório templates.
+- **Controllers**: Contêm a lógica de negócios e fazem a ligação entre Models e Views.
+- **Services**: Fornecem funcionalidades específicas e reutilizáveis.
+- **Routes**: Definem os endpoints da aplicação e chamam os controladores apropriados.
+
+### Benefícios da Nova Arquitetura
+
+- **Separação de Responsabilidades**: Cada componente tem uma função específica
+- **Manutenibilidade**: Mais fácil localizar e corrigir problemas
+- **Testabilidade**: Componentes isolados são mais fáceis de testar
+- **Escalabilidade**: Adicionar novas funcionalidades é mais simples
+- **Reutilização de Código**: Componentes modulares podem ser reutilizados
+
+### Execução da Aplicação Refatorada
+
+Para iniciar a aplicação com a nova arquitetura MVC:
+
+```bash
+# Ativar ambiente virtual
+source venv/bin/activate  # No Windows: venv\Scripts\activate
+
+# Executar o novo ponto de entrada
+python main.py
+```
 
 ## Usuários Padrão
 
@@ -182,7 +236,7 @@ source venv/bin/activate  # No Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Executar o aplicativo
-python app.py
+python main.py
 ```
 
 ## Acesso

@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres_whatsapp_redirect
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: railway
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - whatsapp_redirect_network
+
+  app:
+    build: .
+    container_name: whatsapp_redirect_app
+    environment:
+      - USE_POSTGRES=true
+      - PGDATABASE=railway
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PGHOST=postgres
+      - PGPORT=5432
+    ports:
+      - "3333:3333"
+    depends_on:
+      - postgres
+    networks:
+      - whatsapp_redirect_network
+
+networks:
+  whatsapp_redirect_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

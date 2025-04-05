@@ -102,7 +102,7 @@
                         <p>Para liberar seu acesso imediatamente, envie uma mensagem para nosso suporte exclusivo via WhatsApp.</p>
                         
                         <div class="mt-4">
-                            <a href="{{ url_for('redirect_whatsapp', link_name='padrao') }}" class="btn btn-success btn-lg">
+                            <a href="https://wa.me/5521971832555" class="btn btn-success btn-lg" target="_blank">
                                 <img src="{{ url_for('static', filename='img/logos/Subtract-3.png') }}" alt="WhatsApp" class="icon-logo">
                                 Falar com Atendente
                             </a>
@@ -113,7 +113,7 @@
                         </div>
                     </div>
                     <div class="card-footer">
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">Área do Administrador</a>
+                        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary btn-sm">Área do Administrador</a>
                     </div>
                 </div>
             </div>

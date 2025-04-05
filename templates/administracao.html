@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administração - REDIZAP</title>
+    <title>Administração - WhatsApp Router</title>
     <!-- Adicionando favicon -->
     <link rel="icon" href="{{ url_for('static', filename='img/logos/Subtract.png') }}" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <!-- CSS personalizado carregado por último para ter precedência -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
@@ -187,6 +187,22 @@
             height: 24px;
             margin-right: 10px;
         }
+        
+        /* Melhorar aparência dos números inativos */
+        .inactive-number {
+            opacity: 0.7;
+            border-left: 3px solid #6c757d;
+        }
+        
+        tr.text-muted.bg-dark.border-secondary {
+            background-color: #212529 !important;
+            border-left: 3px solid #6c757d;
+            opacity: 0.7;
+        }
+        
+        tr.text-muted.bg-dark.border-secondary td {
+            color: #adb5bd !important;
+        }
     </style>
     
     <!-- Script para forçar cores após o carregamento da página -->
@@ -208,23 +224,24 @@
                 </div>
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('dashboard') }}">
+                        <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
                             <i class="bi bi-graph-up"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="{{ url_for('administracao') }}">
+                        <a class="nav-link active" href="{{ url_for('admin.administracao') }}">
                             <i class="bi bi-gear"></i> Administração
                         </a>
                     </li>
                     {% if session.username == 'felipe' %}
+                    <!-- Links para administração -->
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_backup') }}">
+                        <a class="nav-link" href="{{ url_for('admin.admin_backup') }}">
                             <i class="bi bi-database"></i> Backup
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_usuarios') }}">
+                        <a class="nav-link" href="{{ url_for('admin.admin_usuarios') }}">
                             <i class="bi bi-people"></i> Usuários
                         </a>
                     </li>
@@ -235,7 +252,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('logout') }}">
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">
                             <i class="bi bi-box-arrow-right"></i> Sair
                         </a>
                     </li>
@@ -291,10 +308,21 @@
                                     <!-- Aba de Números -->
                                     <div class="tab-pane fade show active" id="numbers" role="tabpanel" aria-labelledby="numbers-tab">
                                         <div class="d-flex justify-content-between mb-3">
-                                            <h3 class="h5">Lista de Números Cadastrados</h3>
-                                            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addNumberModal">
+                                            <h3 class="h5">Números de WhatsApp</h3>
+                                            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addNumberModal" {% if active_numbers_count >= plan.max_numbers %}disabled{% endif %}>
                                                 <i class="bi bi-plus-circle me-1"></i> Adicionar Número
                                             </button>
+                                        </div>
+                                        
+                                        <!-- Contador de números ativos -->
+                                        <div class="alert {% if active_numbers_count >= plan.max_numbers %}alert-warning{% else %}alert-info{% endif %} d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <i class="bi bi-info-circle me-2"></i>
+                                                Números ativos: <strong>{{ active_numbers_count }} de {{ plan.max_numbers }}</strong> permitidos no seu plano.
+                                            </div>
+                                            {% if active_numbers_count >= plan.max_numbers %}
+                                            <span class="badge bg-warning text-dark">Limite atingido</span>
+                                            {% endif %}
                                         </div>
                                         
                                         <div class="table-responsive">
@@ -304,26 +332,45 @@
                                                         <th>ID</th>
                                                         <th>Número</th>
                                                         <th>Descrição</th>
+                                                        <th>Status</th>
                                                         <th>Ações</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="numbersList">
                                                     {% if numbers %}
                                                         {% for number in numbers %}
-                                                        <tr data-id="{{ number.id }}">
+                                                        <tr data-id="{{ number.id }}" class="{% if not number.is_active %}text-muted bg-dark border-secondary{% endif %}">
                                                             <td>{{ number.id }}</td>
                                                             <td>{{ number.phone_number }}</td>
                                                             <td>{{ number.description }}</td>
                                                             <td>
-                                                                <button class="btn btn-sm btn-danger delete-number" data-id="{{ number.id }}">
-                                                                    <i class="bi bi-trash"></i>
-                                                                </button>
+                                                                {% if number.is_active %}
+                                                                <span class="badge bg-success">Ativo</span>
+                                                                {% else %}
+                                                                <span class="badge bg-secondary">Inativo</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            <td>
+                                                                <div class="btn-group btn-group-sm">
+                                                                    {% if number.is_active %}
+                                                                    <button class="btn btn-sm btn-warning toggle-number-status" data-id="{{ number.id }}" data-action="deactivate" title="Desativar número">
+                                                                        <i class="bi bi-pause-circle"></i>
+                                                                    </button>
+                                                                    {% else %}
+                                                                    <button class="btn btn-sm btn-success toggle-number-status" data-id="{{ number.id }}" data-action="reactivate" title="Reativar número" {% if active_numbers_count >= plan.max_numbers %}disabled{% endif %}>
+                                                                        <i class="bi bi-play-circle"></i>
+                                                                    </button>
+                                                                    {% endif %}
+                                                                    <button class="btn btn-sm btn-danger delete-number" data-id="{{ number.id }}" title="Excluir número" style="display: none;">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </button>
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                         {% endfor %}
                                                     {% else %}
                                                         <tr>
-                                                            <td colspan="4" class="text-center">Nenhum número cadastrado</td>
+                                                            <td colspan="5" class="text-center">Nenhum número cadastrado</td>
                                                         </tr>
                                                     {% endif %}
                                                 </tbody>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Página não encontrada | RediZAP</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logos/Subtract.png') }}" type="image/png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .error-container {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px;
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .error-icon {
+            font-size: 80px;
+            color: #dc3545;
+            margin-bottom: 20px;
+        }
+        .error-title {
+            font-size: 32px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .error-message {
+            font-size: 18px;
+            margin-bottom: 30px;
+            color: #adb5bd;
+        }
+        .btn-back {
+            background-color: #28a745;
+            border: none;
+            padding: 10px 25px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .btn-back:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">
+            <i class="bi bi-exclamation-circle"></i>
+        </div>
+        <h1 class="error-title">Página não encontrada</h1>
+        <p class="error-message">{{ description }}</p>
+        <a href="{{ url_for('index') }}" class="btn btn-back">Voltar para a página inicial</a>
+    </div>
+</body>
+</html> 

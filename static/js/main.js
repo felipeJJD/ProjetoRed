@@ -185,6 +185,49 @@ document.addEventListener('DOMContentLoaded', function() {
     // Excluir número
     if (numbersList) {
         numbersList.addEventListener('click', function(e) {
+            // Botões de ativar/desativar número
+            if (e.target.closest('.toggle-number-status')) {
+                const button = e.target.closest('.toggle-number-status');
+                const numberId = button.dataset.id;
+                const action = button.dataset.action;
+                
+                let confirmMessage, apiUrl, method;
+                
+                if (action === 'deactivate') {
+                    confirmMessage = 'Tem certeza que deseja desativar este número?';
+                    apiUrl = `${getBaseUrl()}/api/numbers/${numberId}`;
+                    method = 'DELETE';
+                } else if (action === 'reactivate') {
+                    confirmMessage = 'Tem certeza que deseja reativar este número?';
+                    apiUrl = `${getBaseUrl()}/api/numbers/${numberId}/reactivate`;
+                    method = 'POST';
+                }
+                
+                if (confirm(confirmMessage)) {
+                    // Enviar solicitação para ativar/desativar número
+                    fetch(apiUrl, {
+                        method: method,
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Mostrar mensagem de sucesso
+                            showToast(data.message);
+                            
+                            // Recarregar a página para atualizar a lista
+                            window.location.reload();
+                        } else {
+                            showToast(data.error || 'Ocorreu um erro', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        showToast('Ocorreu um erro ao processar sua solicitação', 'danger');
+                    });
+                }
+            }
+            
+            // Antigo botão de excluir número - agora escondido
             if (e.target.closest('.delete-number')) {
                 const button = e.target.closest('.delete-number');
                 const numberId = button.dataset.id;
@@ -207,11 +250,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Se não houver mais números, adicionar mensagem
                             if (numbersList.querySelectorAll('tr').length === 0) {
                                 const emptyRow = document.createElement('tr');
-                                emptyRow.innerHTML = '<td colspan="4" class="text-center">Nenhum número cadastrado</td>';
+                                emptyRow.innerHTML = '<td colspan="5" class="text-center">Nenhum número cadastrado</td>';
                                 numbersList.appendChild(emptyRow);
                             }
                         } else {
-                            showToast(data.message, 'danger');
+                            showToast(data.error || data.message || 'Ocorreu um erro', 'danger');
                         }
                     })
                     .catch(error => {
@@ -326,14 +369,58 @@ document.addEventListener('DOMContentLoaded', function() {
                 const button = e.target.closest('.copy-link');
                 const url = button.dataset.url;
                 
-                navigator.clipboard.writeText(url)
-                    .then(() => {
-                        showToast('Link copiado para a área de transferência!');
-                    })
-                    .catch(err => {
-                        console.error('Erro ao copiar:', err);
+                // Função de fallback para copiar texto
+                function fallbackCopyTextToClipboard(text) {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    
+                    // Torna o textarea invisível
+                    textArea.style.position = "fixed";
+                    textArea.style.top = "0";
+                    textArea.style.left = "0";
+                    textArea.style.width = "2em";
+                    textArea.style.height = "2em";
+                    textArea.style.padding = "0";
+                    textArea.style.border = "none";
+                    textArea.style.outline = "none";
+                    textArea.style.boxShadow = "none";
+                    textArea.style.background = "transparent";
+                    
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    
+                    try {
+                        const successful = document.execCommand('copy');
+                        if (successful) {
+                            showToast('Link copiado para a área de transferência!');
+                        } else {
+                            showToast('Não foi possível copiar o link', 'warning');
+                        }
+                    } catch (err) {
+                        console.error('Erro ao usar execCommand:', err);
                         showToast('Erro ao copiar link', 'danger');
-                    });
+                    }
+                    
+                    document.body.removeChild(textArea);
+                }
+                
+                // Tentar usar a API moderna primeiro, com fallback se não disponível
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(url)
+                        .then(() => {
+                            showToast('Link copiado para a área de transferência!');
+                        })
+                        .catch(err => {
+                            console.error('Erro ao copiar com Clipboard API:', err);
+                            // Se a API moderna falhar, usar o método de fallback
+                            fallbackCopyTextToClipboard(url);
+                        });
+                } else {
+                    // Navegador não suporta Clipboard API
+                    console.log('Clipboard API não suportada, usando fallback');
+                    fallbackCopyTextToClipboard(url);
+                }
             }
             
             // Excluir link
@@ -439,4 +526,233 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // Verificar se estamos na página do dashboard
+    if (document.getElementById('dashboard-container')) {
+        console.log('Inicializando dashboard...');
+        // Definir data inicial como hoje por padrão
+        const today = getTodayDate();
+        if (document.getElementById('startDate')) {
+            document.getElementById('startDate').value = today;
+        }
+        if (document.getElementById('endDate')) {
+            document.getElementById('endDate').value = today;
+        }
+        
+        // Carregar estatísticas iniciais
+        updateDashboardAll();
+        
+        // Adicionar event listeners para os filtros
+        document.getElementById('filterButton')?.addEventListener('click', updateDashboardAll);
+    }
 });
+
+// Função para atualizar as estatísticas do dashboard
+function updateDashboardStats() {
+    // Obter parâmetros de filtro atuais
+    const startDate = document.getElementById('startDate')?.value || getTodayDate();
+    const endDate = document.getElementById('endDate')?.value || getTodayDate();
+    const linkId = document.getElementById('linkSelector')?.value || 'all';
+    
+    // Construir URL com os parâmetros de filtro
+    let url = `${getBaseUrl()}/api/stats/summary`;
+    // Sempre incluir datas
+    url += `?start_date=${startDate}&end_date=${endDate}`;
+    if (linkId && linkId !== 'all') {
+        url += `&link_id=${linkId}`;
+    }
+    
+    // Fazer a requisição para obter as estatísticas
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erro ao obter estatísticas');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Estatísticas recebidas:', data);
+            // Atualizar os valores nos cards
+            if (document.getElementById('totalClicks')) {
+                document.getElementById('totalClicks').textContent = data.total_clicks;
+            }
+            if (document.getElementById('dailyAverage')) {
+                document.getElementById('dailyAverage').textContent = data.daily_average;
+            }
+            if (document.getElementById('activeLinks')) {
+                document.getElementById('activeLinks').textContent = data.active_links;
+            }
+            if (document.getElementById('activeNumbers')) {
+                document.getElementById('activeNumbers').textContent = data.active_numbers;
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao atualizar estatísticas:', error);
+        });
+}
+
+// Função para obter a data atual no formato YYYY-MM-DD
+function getTodayDate() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// Função para atualizar tabela de redirecionamentos recentes
+function updateRecentRedirects() {
+    // Obter parâmetros de filtro atuais
+    const startDate = document.getElementById('startDate')?.value || getTodayDate();
+    const endDate = document.getElementById('endDate')?.value || getTodayDate();
+    const linkId = document.getElementById('linkSelector')?.value || 'all';
+    
+    // Construir URL com os parâmetros de filtro
+    let url = `${getBaseUrl()}/api/redirects/recent`;
+    url += `?start_date=${startDate}&end_date=${endDate}`;
+    if (linkId && linkId !== 'all') {
+        url += `&link_id=${linkId}`;
+    }
+    url += '&limit=10&page=1';
+    
+    // Fazer a requisição para obter os redirecionamentos recentes
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erro ao obter redirecionamentos recentes');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Redirecionamentos recentes:', data);
+            
+            // Verificar se existe a tabela de redirecionamentos
+            const recentRedirectsTable = document.getElementById('recentRedirectsTable');
+            if (!recentRedirectsTable) return;
+            
+            const tbody = recentRedirectsTable.querySelector('tbody');
+            if (!tbody) return;
+            
+            // Limpar a tabela
+            tbody.innerHTML = '';
+            
+            // Se não houver redirecionamentos
+            if (!data.redirects || data.redirects.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhum redirecionamento encontrado</td></tr>';
+                return;
+            }
+            
+            // Adicionar os redirecionamentos à tabela
+            data.redirects.forEach(redirect => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td>${redirect.time}</td>
+                    <td>${redirect.link_name}</td>
+                    <td>${redirect.phone_number}</td>
+                    <td>${redirect.ip_address}</td>
+                    <td>
+                        ${redirect.location.city ? redirect.location.city : ''} 
+                        ${redirect.location.region ? redirect.location.region : ''} 
+                        ${redirect.location.country ? redirect.location.country : 'Desconhecido'}
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        })
+        .catch(error => {
+            console.error('Erro ao atualizar redirecionamentos recentes:', error);
+        });
+}
+
+// Função para atualizar o dashboard completo
+function updateDashboardAll() {
+    updateDashboardStats();
+    updateRecentRedirects();
+    updateNumberStats();
+}
+
+// Função para atualizar estatísticas por número
+function updateNumberStats() {
+    // Obter parâmetros de filtro atuais
+    const startDate = document.getElementById('startDate')?.value || getTodayDate();
+    const endDate = document.getElementById('endDate')?.value || getTodayDate();
+    const linkId = document.getElementById('linkSelector')?.value || 'all';
+    
+    // Construir URL com os parâmetros de filtro
+    let url = `${getBaseUrl()}/api/stats/by-number`;
+    url += `?start_date=${startDate}&end_date=${endDate}`;
+    if (linkId && linkId !== 'all') {
+        url += `&link_id=${linkId}`;
+    }
+    
+    // Fazer a requisição para obter as estatísticas por número
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erro ao obter estatísticas por número');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Estatísticas por número:', data);
+            
+            // Verificar se existe a tabela de estatísticas por número
+            const numberStats = document.getElementById('numberStats');
+            if (!numberStats) {
+                console.error("Elemento com id 'numberStats' não encontrado");
+                return;
+            }
+            
+            // Limpar a tabela
+            numberStats.innerHTML = '';
+            
+            // Se não houver estatísticas
+            if (!data.number_stats || data.number_stats.length === 0) {
+                numberStats.innerHTML = '<tr><td colspan="5" class="text-center">Nenhuma estatística encontrada</td></tr>';
+                return;
+            }
+            
+            // Adicionar as estatísticas à tabela
+            data.number_stats.forEach(stat => {
+                const row = document.createElement('tr');
+                
+                // Calcular a porcentagem para a barra de progresso
+                const percentage = stat.percentage;
+                
+                row.innerHTML = `
+                    <td>${stat.phone_number}</td>
+                    <td>${stat.description || ''}</td>
+                    <td>${stat.access_count}</td>
+                    <td>
+                        <div class="progress">
+                            <div class="progress-bar" role="progressbar" style="width: ${percentage}%"
+                                aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100">
+                                ${percentage}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>${stat.last_access || 'N/A'}</td>
+                `;
+                
+                numberStats.appendChild(row);
+            });
+        })
+        .catch(error => {
+            console.error('Erro ao atualizar estatísticas por número:', error);
+        });
+}
+
+// Verificar se a página atual é dashboard
+function isDashboardPage() {
+    return !!document.getElementById('dashboard-container');
+}
+
+// Loop para atualizar as estatísticas a cada 5 minutos automaticamente
+setInterval(function() {
+    if (isDashboardPage()) {
+        console.log('Atualizando estatísticas automaticamente...');
+        updateDashboardAll();
+    }
+}, 300000); // 5 minutos em milissegundos

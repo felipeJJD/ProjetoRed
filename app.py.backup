@@ -1,0 +1,1752 @@
+import os
+import random
+# Remover importação do SQLite
+import utils.db_adapter as db_adapter
+from datetime import datetime, timedelta
+from flask import Flask, render_template, request, redirect, jsonify, url_for, session, send_from_directory, abort, flash
+from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
+import requests  # Para chamadas API externas
+import logging
+
+# Configuração do Flask
+app = Flask(__name__)
+app.secret_key = 'your_secret_key'  # Chave secreta para sessões
+
+# Configuração apenas para PostgreSQL (removida opção SQLite)
+app.config['USE_POSTGRES'] = True
+app.config['PG_CONFIG'] = {
+    'dbname': os.environ.get('PGDATABASE', 'railway'),
+    'user': os.environ.get('PGUSER', 'postgres'),
+    'password': os.environ.get('PGPASSWORD', 'nsAgxYUGJuIRXTalVIdclsTDecKEsgpc'),
+    'host': os.environ.get('PGHOST', 'switchyard.proxy.rlwy.net'),
+    'port': os.environ.get('PGPORT', '24583')
+}
+
+# Garantir que o diretório instance exista
+os.makedirs(os.path.dirname(os.path.join(os.path.dirname(__file__), 'instance')), exist_ok=True)
+
+# Configurações para desenvolvimento
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Desativar cache para desenvolvimento
+app.config['TEMPLATES_AUTO_RELOAD'] = True  # Recarregar templates automaticamente
+
+# Funções para gerenciar banco de dados
+def get_db_connection():
+    # Usar o adaptador que suporta SQLite e PostgreSQL
+    return db_adapter.db_adapter.get_db_connection()
+
+def init_db():
+    with get_db_connection() as conn:
+        # Criar tabela de planos - apenas para PostgreSQL
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS plans (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                max_numbers INTEGER NOT NULL,
+                max_links INTEGER NOT NULL,
+                description TEXT
+            )
+        ''')
+        
+        # Verificar se existem planos e criar os padrões se não houver
+        cursor.execute('SELECT * FROM plans')
+        if not cursor.fetchone():
+            # Criar planos padrão (básico, intermediário, avançado, ilimitado)
+            cursor.execute('''
+                INSERT INTO plans (name, max_numbers, max_links, description)
+                VALUES (%s, %s, %s, %s)
+            ''', ('basic', 2, 1, 'Plano Básico'))
+            
+            cursor.execute('''
+                INSERT INTO plans (name, max_numbers, max_links, description)
+                VALUES (%s, %s, %s, %s)
+            ''', ('intermediate', 5, 3, 'Plano Intermediário'))
+            
+            cursor.execute('''
+                INSERT INTO plans (name, max_numbers, max_links, description)
+                VALUES (%s, %s, %s, %s)
+            ''', ('advanced', 10, 10, 'Plano Avançado'))
+            
+            cursor.execute('''
+                INSERT INTO plans (name, max_numbers, max_links, description)
+                VALUES (%s, %s, %s, %s)
+            ''', ('unlimited', -1, -1, 'Plano Ilimitado'))
+            
+        # Criar tabela de usuários
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password TEXT NOT NULL,
+                email TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                plan_id INTEGER REFERENCES plans(id),
+                is_admin BOOLEAN DEFAULT FALSE
+            )
+        ''')
+        
+        # Verificar se existe ao menos um usuário e criar um usuário administrador padrão se não houver
+        cursor.execute('SELECT * FROM users')
+        if not cursor.fetchone():
+            default_password = generate_password_hash('admin123')
+            cursor.execute('''
+                INSERT INTO users (username, password, plan_id, is_admin)
+                VALUES (%s, %s, %s, %s)
+            ''', ('admin', default_password, 4, True))  # Plano ilimitado e admin
+            
+        # Criar tabela de números de WhatsApp
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS whatsapp_numbers (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                phone_number TEXT NOT NULL,
+                description TEXT,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                redirect_count INTEGER DEFAULT 0
+            )
+        ''')
+        
+        # Criar tabela de links personalizados
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS custom_links (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                link_name TEXT NOT NULL,
+                number_id INTEGER REFERENCES whatsapp_numbers(id),
+                is_rotating BOOLEAN DEFAULT FALSE,
+                number_ids TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                click_count INTEGER DEFAULT 0,
+                prefix INTEGER DEFAULT 0,
+                message_template TEXT
+            )
+        ''')
+        
+        # Criar tabela de logs de redirecionamento
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS redirect_logs (
+                id SERIAL PRIMARY KEY,
+                link_id INTEGER REFERENCES custom_links(id),
+                number_id INTEGER REFERENCES whatsapp_numbers(id),
+                redirect_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                user_agent TEXT,
+                ip_address TEXT,
+                city TEXT,
+                region TEXT,
+                country TEXT,
+                latitude REAL,
+                longitude REAL,
+                message TEXT
+            )
+        ''')
+        
+        # Comitar as alterações
+        conn.commit()
+        
+        # Adicionar colunas ausentes ou corrigir tipos de dados em tabelas existentes
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name='whatsapp_numbers'")
+            columns = [col[0] for col in cursor.fetchall()]
+            if 'redirect_count' not in columns:
+                cursor.execute('ALTER TABLE whatsapp_numbers ADD COLUMN redirect_count INTEGER DEFAULT 0')
+                conn.commit()
+        except Exception as e:
+            print(f"Erro ao verificar coluna redirect_count: {str(e)}")
+
+# Inicializar o banco de dados
+init_db()
+
+# Função para verificar se o usuário está logado
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        print(f"Verificando autenticação para rota: {request.path}")
+        print(f"Informações da sessão: {session}")
+        if 'logged_in' not in session or not session['logged_in']:
+            print(f"Acesso negado: usuário não está logado")
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Rotas da aplicação
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        # Verificar se os dados são JSON ou formulário HTML
+        if request.is_json:
+            data = request.json
+            username = data.get('username')
+            password = data.get('password')
+        else:
+            username = request.form.get('username')
+            password = request.form.get('password')
+        
+        if not username or not password:
+            return jsonify({'error': 'Usuário e senha são obrigatórios'}), 400
+        
+        print(f"Tentativa de login para usuário: {username}")
+        
+        # Buscar usuário no banco de dados
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+            user = cursor.fetchone()
+                
+            if user:
+                print(f"Usuário encontrado: {username}, colunas disponíveis: {user.keys()}")
+            else:
+                print(f"Usuário não encontrado: {username}")
+        
+        # Verificar credenciais
+        if user and check_password_hash(user['password'], password):
+            session.clear()  # Limpar qualquer sessão existente
+            session['logged_in'] = True
+            session['username'] = username
+            session['user_id'] = user['id']
+            
+            # Atribuir fullname apenas se o campo existir
+            if 'fullname' in user:
+                session['fullname'] = user['fullname']
+            else:
+                session['fullname'] = username  # Usar o nome de usuário como alternativa
+                
+            print(f"Login bem-sucedido para usuário: {username}, ID: {user['id']}")
+            print(f"Redirecionando para: {url_for('admin')}")
+            return redirect(url_for('admin'))
+        else:
+            error = 'Credenciais inválidas. Por favor, tente novamente.'
+            print(f"Tentativa de login falhou para usuário: {username}")
+    
+    # Se for método GET ou login falhar
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+def logout():
+    print(f"Logout para usuário: {session.get('username')}")
+    session.clear()  # Limpar a sessão completamente
+    return redirect(url_for('login'))
+
+@app.route('/admin')
+@login_required
+def admin():
+    # Adicionar logs para debug
+    print(f"Rota /admin acessada pelo usuário: {session.get('username')}")
+    print(f"Redirecionando para administracao: {url_for('administracao')}")
+    
+    # Redirecionar para a página de administração principal
+    return redirect(url_for('administracao'))
+
+# Rota alternativa para a página de administração
+@app.route('/administracao')
+@login_required
+def administracao():
+    print(f"Rota /administracao acessada pelo usuário: {session.get('username')}")
+    
+    user_id = session.get('user_id')
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM custom_links WHERE user_id = %s', (user_id,))
+        links = cursor.fetchall()
+        
+        cursor.execute('SELECT * FROM whatsapp_numbers WHERE user_id = %s', (user_id,))
+        numbers = cursor.fetchall()
+    
+    return render_template('administracao.html', numbers=numbers, links=links)
+
+# Rota para a página de dashboard
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    print(f"Rota /dashboard acessada pelo usuário: {session.get('username')}")
+    
+    user_id = session.get('user_id')
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM custom_links WHERE user_id = %s', (user_id,))
+        links = cursor.fetchall()
+        
+        # Obter estatísticas para exibição no dashboard
+        stats = get_dashboard_stats(conn, user_id)
+    
+    print(f"Renderizando o dashboard com {len(links)} links")
+    try:
+        # Usar o template na pasta raiz para evitar confusão com o template na pasta admin/
+        return render_template('dashboard.html', links=links, stats=stats)
+    except Exception as e:
+        print(f"Erro ao renderizar dashboard: {str(e)}")
+        return f"Erro ao renderizar dashboard: {str(e)}", 500
+
+# Função para obter estatísticas do dashboard
+def get_dashboard_stats(conn, user_id):
+    """
+    Obtém estatísticas de uso para exibição no dashboard do usuário.
+    """
+    stats = {
+        'total_links': 0,
+        'total_numbers': 0,
+        'total_redirects': 0,
+        'redirects_today': 0,
+        'top_links': [],
+        'top_numbers': [],
+        'recent_redirects': []
+    }
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Total de links ativos do usuário
+        cursor.execute(
+            'SELECT COUNT(*) as count FROM custom_links WHERE user_id = %s', 
+            (user_id,)
+        )
+        total_links = cursor.fetchone()
+        stats['total_links'] = total_links['count'] if total_links else 0
+        
+        # Total de números ativos do usuário
+        cursor.execute(
+            'SELECT COUNT(*) as count FROM whatsapp_numbers WHERE user_id = %s AND is_active IS TRUE', 
+            (user_id,)
+        )
+        total_numbers = cursor.fetchone()
+        stats['total_numbers'] = total_numbers['count'] if total_numbers else 0
+        
+        # Total de redirecionamentos (geral)
+        query = '''
+            SELECT COUNT(*) as count 
+            FROM redirect_logs rl
+            JOIN custom_links cl ON rl.link_id = cl.id
+            WHERE cl.user_id = %s
+        '''
+        cursor.execute(query, (user_id,))
+        total_redirects = cursor.fetchone()
+        stats['total_redirects'] = total_redirects['count'] if total_redirects else 0
+        
+        # Redirecionamentos de hoje
+        query = '''
+            SELECT COUNT(*) as count 
+            FROM redirect_logs rl
+            JOIN custom_links cl ON rl.link_id = cl.id
+            WHERE cl.user_id = %s
+            AND DATE(rl.redirect_time) = CURRENT_DATE
+        '''
+        cursor.execute(query, (user_id,))
+        redirects_today = cursor.fetchone()
+        stats['redirects_today'] = redirects_today['count'] if redirects_today else 0
+        
+        # Top 5 links mais usados
+        query = '''
+            SELECT cl.link_name, cl.id, COUNT(rl.id) as redirect_count
+            FROM custom_links cl
+            LEFT JOIN redirect_logs rl ON cl.id = rl.link_id
+            WHERE cl.user_id = %s
+            GROUP BY cl.id, cl.link_name
+            ORDER BY redirect_count DESC
+            LIMIT 5
+        '''
+        cursor.execute(query, (user_id,))
+        top_links = cursor.fetchall()
+        stats['top_links'] = top_links if top_links else []
+        
+        # Top 5 números mais usados
+        query = '''
+            SELECT wn.phone_number, wn.description, COUNT(rl.id) as redirect_count
+            FROM whatsapp_numbers wn
+            LEFT JOIN redirect_logs rl ON wn.id = rl.number_id
+            WHERE wn.user_id = %s
+            GROUP BY wn.id, wn.phone_number, wn.description
+            ORDER BY redirect_count DESC
+            LIMIT 5
+        '''
+        cursor.execute(query, (user_id,))
+        top_numbers = cursor.fetchall()
+        stats['top_numbers'] = top_numbers if top_numbers else []
+        
+        # Redirecionamentos recentes
+        query = '''
+            SELECT 
+                rl.redirect_time, cl.link_name, wn.phone_number,
+                rl.ip_address, rl.city, rl.country, rl.message
+            FROM redirect_logs rl
+            JOIN custom_links cl ON rl.link_id = cl.id
+            JOIN whatsapp_numbers wn ON rl.number_id = wn.id
+            WHERE cl.user_id = %s
+            ORDER BY rl.redirect_time DESC
+            LIMIT 10
+        '''
+        cursor.execute(query, (user_id,))
+        recent_redirects = cursor.fetchall()
+        stats['recent_redirects'] = recent_redirects if recent_redirects else []
+        
+    except Exception as e:
+        logging.error(f"Erro ao obter estatísticas do dashboard: {str(e)}")
+    
+    return stats
+
+# API para gerenciar números de WhatsApp
+@app.route('/api/numbers', methods=['GET', 'POST'])
+@login_required
+def manage_numbers():
+    user_id = session.get('user_id')
+    with get_db_connection() as conn:
+        if app.config['USE_POSTGRES']:
+            cursor = conn.cursor()
+            if request.method == 'POST':
+                # Verificar se os dados são JSON ou formulário
+                if request.is_json:
+                    data = request.json
+                    phone_number = data.get('phone_number')
+                    description = data.get('description')
+                else:
+                    phone_number = request.form.get('phone_number')
+                    description = request.form.get('description')
+                
+                # Validação do número de telefone
+                if not phone_number:
+                    return jsonify({'success': False, 'error': 'Número de telefone é obrigatório'}), 400
+                
+                # Validar e formatar o número de telefone
+                validated_number = validate_phone_number(phone_number)
+                if not validated_number:
+                    return jsonify({'success': False, 'error': 'Número de telefone inválido. Use o formato: 5541999887766'}), 400
+                
+                # Verificar se o número já existe para este usuário
+                cursor.execute('SELECT * FROM whatsapp_numbers WHERE phone_number = %s AND user_id = %s', 
+                              (validated_number, user_id))
+                existing = cursor.fetchone()
+                if existing:
+                    return jsonify({'success': False, 'error': 'Este número já está cadastrado para o seu usuário'}), 400
+                
+                # Verificar o limite de plano do usuário para números
+                cursor.execute('''
+                    SELECT p.max_numbers
+                    FROM users u
+                    JOIN plans p ON u.plan_id = p.id
+                    WHERE u.id = %s
+                ''', (user_id,))
+                plan_info = cursor.fetchone()
+                
+                if not plan_info:
+                    return jsonify({'success': False, 'error': 'Informações do plano não encontradas'}), 400
+                
+                # Verificar número atual de chips do usuário
+                cursor.execute('''
+                    SELECT COUNT(*) as count
+                    FROM whatsapp_numbers
+                    WHERE user_id = %s
+                ''', (user_id,))
+                current_numbers = cursor.fetchone()['count']
+                
+                # Se max_numbers > 0 (não ilimitado) e já atingiu o limite, impedir a criação
+                if plan_info['max_numbers'] >= 0 and current_numbers >= plan_info['max_numbers']:
+                    return jsonify({
+                        'success': False, 
+                        'error': f'Limite de chips atingido. Seu plano permite apenas {plan_info["max_numbers"]} chip(s). Contate o administrador para upgrade.'
+                    }), 400
+                
+                # Inserir o novo número
+                cursor.execute('INSERT INTO whatsapp_numbers (user_id, phone_number, description) VALUES (%s, %s, %s)', 
+                           (user_id, validated_number, description))
+                conn.commit()
+                
+                return jsonify({'success': True, 'message': 'Número adicionado com sucesso'})
+            
+            # GET - Listar todos os números do usuário
+            cursor.execute('SELECT * FROM whatsapp_numbers WHERE user_id = %s ORDER BY id', (user_id,))
+            numbers = cursor.fetchall()
+            result = []
+            for number in numbers:
+                result.append({
+                    'id': number['id'],
+                    'phone_number': number['phone_number'],
+                    'description': number['description'],
+                    'is_active': number['is_active']
+                })
+            return jsonify({'success': True, 'numbers': result})
+        else:
+            # Código SQLite original
+            # Criar cursor para operações consistentes
+            cursor = conn.cursor()
+            
+            if request.method == 'POST':
+                # Verificar se os dados são JSON ou formulário
+                if request.is_json:
+                    data = request.json
+                    phone_number = data.get('phone_number')
+                    description = data.get('description')
+                else:
+                    phone_number = request.form.get('phone_number')
+                    description = request.form.get('description')
+                
+                # Validação do número de telefone
+                if not phone_number:
+                    return jsonify({'success': False, 'error': 'Número de telefone é obrigatório'}), 400
+                
+                # Validar e formatar o número de telefone
+                validated_number = validate_phone_number(phone_number)
+                if not validated_number:
+                    return jsonify({'success': False, 'error': 'Número de telefone inválido. Use o formato: 5541999887766'}), 400
+                
+                # Verificar se o número já existe para este usuário
+                cursor.execute('SELECT * FROM whatsapp_numbers WHERE phone_number = ? AND user_id = ?', 
+                              (validated_number, user_id))
+                existing = cursor.fetchone()
+                if existing:
+                    return jsonify({'success': False, 'error': 'Este número já está cadastrado para o seu usuário'}), 400
+                
+                # Verificar o limite de plano do usuário para números
+                cursor.execute('''
+                    SELECT p.max_numbers
+                    FROM users u
+                    JOIN plans p ON u.plan_id = p.id
+                    WHERE u.id = ?
+                ''', (user_id,))
+                plan_info = cursor.fetchone()
+                
+                if not plan_info:
+                    return jsonify({'success': False, 'error': 'Informações do plano não encontradas'}), 400
+                
+                # Verificar número atual de chips do usuário
+                cursor.execute('''
+                    SELECT COUNT(*) as count
+                    FROM whatsapp_numbers
+                    WHERE user_id = ?
+                ''', (user_id,))
+                current_numbers = cursor.fetchone()['count']
+                
+                # Se max_numbers > 0 (não ilimitado) e já atingiu o limite, impedir a criação
+                if plan_info['max_numbers'] >= 0 and current_numbers >= plan_info['max_numbers']:
+                    return jsonify({
+                        'success': False, 
+                        'error': f'Limite de chips atingido. Seu plano permite apenas {plan_info["max_numbers"]} chip(s). Contate o administrador para upgrade.'
+                    }), 400
+                
+                # Inserir o novo número
+                cursor.execute('INSERT INTO whatsapp_numbers (user_id, phone_number, description) VALUES (?, ?, ?)', 
+                             (user_id, validated_number, description))
+                conn.commit()
+                
+                return jsonify({'success': True, 'message': 'Número adicionado com sucesso'})
+            
+            # GET - Listar todos os números do usuário
+            cursor.execute('SELECT * FROM whatsapp_numbers WHERE user_id = ? ORDER BY id', (user_id,))
+            numbers = cursor.fetchall()
+            result = []
+            for number in numbers:
+                result.append({
+                    'id': number['id'],
+                    'phone_number': number['phone_number'],
+                    'description': number['description'],
+                    'is_active': number['is_active']
+                })
+            return jsonify({'success': True, 'numbers': result})
+
+# Função para validar número de telefone
+def validate_phone_number(phone):
+    # Remover caracteres não numéricos
+    clean_number = ''.join(filter(str.isdigit, phone))
+    
+    # Verificar se o número tem pelo menos 10 dígitos (formato internacional com DDD)
+    if len(clean_number) < 10:
+        return None
+    
+    # Se não começar com código do país, assumir Brasil (+55)
+    if not clean_number.startswith('55'):
+        clean_number = '55' + clean_number
+    
+    return clean_number
+
+@app.route('/api/numbers/<int:number_id>', methods=['DELETE', 'PUT'])
+@login_required
+def delete_number(number_id):
+    user_id = session.get('user_id')
+    try:
+        with get_db_connection() as conn:
+            # Criar cursor para todas as operações
+            cursor = conn.cursor()
+            
+            # Verificar se o número pertence ao usuário atual
+            cursor.execute('SELECT * FROM whatsapp_numbers WHERE id = %s AND user_id = %s', 
+                          (number_id, user_id))
+            number = cursor.fetchone()
+            
+            if not number:
+                return jsonify({'success': False, 'error': 'Número não encontrado ou sem permissão'}), 403
+            
+            if request.method == 'DELETE':
+                try:
+                    # Verificar se há registros de redirecionamento usando este número
+                    cursor.execute('SELECT COUNT(*) as count FROM redirect_logs WHERE number_id = %s', (number_id,))
+                    redirect_count = cursor.fetchone()['count']
+                    
+                    if redirect_count > 0:
+                        # Não podemos excluir um número que está sendo referenciado em logs
+                        return jsonify({
+                            'success': False, 
+                            'error': 'Este número não pode ser excluído pois está sendo usado em logs de redirecionamento. Considere desativar o número em vez de excluí-lo.'
+                        }), 400
+                    
+                    # Se não houver referências, podemos excluir
+                    cursor.execute('DELETE FROM whatsapp_numbers WHERE id = %s', (number_id,))
+                    conn.commit()
+                    return jsonify({'success': True, 'message': 'Número excluído com sucesso'})
+                    
+                except Exception as delete_error:
+                    # Verificar se é erro de chave estrangeira
+                    error_str = str(delete_error)
+                    if 'foreign key constraint' in error_str or 'violates foreign key' in error_str:
+                        return jsonify({
+                            'success': False, 
+                            'error': 'Este número não pode ser excluído pois está sendo usado em logs de redirecionamento. Considere desativar o número em vez de excluí-lo.'
+                        }), 400
+                    else:
+                        # Outro tipo de erro
+                        raise delete_error
+            
+            elif request.method == 'PUT':
+                # Atualizar informações do número
+                if request.is_json:
+                    data = request.json
+                    description = data.get('description')
+                    is_active = data.get('is_active')
+                    
+                    print(f"Dados recebidos: {data}")
+                    print(f"Tipo de is_active: {type(is_active).__name__}, valor: {is_active}")
+                    
+                    update_parts = []
+                    params = []
+                    
+                    if description is not None:
+                        update_parts.append('description = %s')
+                        params.append(description)
+                    
+                    if is_active is not None:
+                        # Usar valor inteiro já que a coluna is_active é do tipo integer
+                        update_parts.append("is_active = %s")
+                        params.append(1 if is_active else 0)
+                        print(f"Valor inteiro para is_active: {1 if is_active else 0}")
+                    
+                    if update_parts:
+                        params.append(number_id)
+                        query = f'UPDATE whatsapp_numbers SET {", ".join(update_parts)} WHERE id = %s'
+                        print(f"Query: {query}, Params: {params}")
+                        try:
+                            cursor.execute(query, params)
+                            conn.commit()
+                            return jsonify({'success': True, 'message': 'Número atualizado com sucesso'})
+                        except Exception as e:
+                            print(f"Erro ao executar update: {str(e)}")
+                            conn.rollback()
+                            return jsonify({'success': False, 'error': f'Erro ao atualizar: {str(e)}'}), 500
+                    
+                    return jsonify({'success': False, 'error': 'Nenhum campo para atualizar'}), 400
+                
+                return jsonify({'success': False, 'error': 'Formato JSON inválido'}), 400
+            
+    except Exception as e:
+        print(f"Erro ao gerenciar número: {str(e)}")
+        return jsonify({'success': False, 'error': 'Ocorreu um erro ao processar sua solicitação'}), 500
+
+# API para gerenciar links personalizados
+@app.route('/api/links', methods=['GET', 'POST'])
+@login_required
+def manage_links():
+    user_id = session.get('user_id')
+    with get_db_connection() as conn:
+        # Criar cursor para todas as operações
+        cursor = conn.cursor()
+        
+        if request.method == 'POST':
+            # Verificar se os dados são JSON ou formulário
+            if request.is_json:
+                data = request.json
+                link_name = data.get('link_name')
+                custom_message = data.get('custom_message')
+            else:
+                link_name = request.form.get('link_name')
+                custom_message = request.form.get('custom_message')
+            
+            # Validar dados
+            if not link_name:
+                return jsonify({'success': False, 'error': 'Nome do link é obrigatório'}), 400
+            
+            # Verificar o limite de plano do usuário
+            cursor.execute('''
+                SELECT p.max_links
+                FROM users u
+                JOIN plans p ON u.plan_id = p.id
+                WHERE u.id = %s
+            ''', (user_id,))
+            plan_info = cursor.fetchone()
+            
+            if not plan_info:
+                return jsonify({'success': False, 'error': 'Informações do plano não encontradas'}), 400
+            
+            # Verificar número atual de links do usuário
+            cursor.execute('''
+                SELECT COUNT(*) as count
+                FROM custom_links
+                WHERE user_id = %s
+            ''', (user_id,))
+            current_links = cursor.fetchone()['count']
+            
+            # Se max_links > 0 (não ilimitado) e já atingiu o limite, impedir a criação
+            if plan_info['max_links'] >= 0 and current_links >= plan_info['max_links']:
+                return jsonify({
+                    'success': False, 
+                    'error': f'Limite de links atingido. Seu plano permite apenas {plan_info["max_links"]} link(s). Contate o administrador para upgrade.'
+                }), 400
+            
+            # Determinar o próximo prefixo disponível para este link
+            prefix = get_next_prefix(conn, user_id, link_name)
+            
+            # Inserir o novo link com o prefixo calculado
+            cursor.execute('INSERT INTO custom_links (user_id, link_name, custom_message, prefix) VALUES (%s, %s, %s, %s)', 
+                       (user_id, link_name, custom_message, prefix))
+            
+            # Commit explícito para garantir que as alterações sejam salvas
+            conn.commit()
+            
+            # Retornar também o prefixo para que o frontend possa exibir o link completo
+            # Agora retornamos o ID do usuário para o novo formato de URL
+            return jsonify({
+                'success': True, 
+                'message': 'Link adicionado com sucesso',
+                'prefix': prefix,
+                'user_id': user_id,
+                'full_link': f"{user_id}/{link_name}",
+                'legacy_link': f"{prefix}/{link_name}"  # Formato antigo para compatibilidade
+            })
+        
+        # Se for GET, retornar todos os links
+        cursor.execute('SELECT * FROM custom_links WHERE user_id = %s ORDER BY link_name, prefix', (user_id,))
+        links = cursor.fetchall()
+        return jsonify([dict(link) for link in links])
+
+@app.route('/api/links/<int:link_id>', methods=['DELETE'])
+@login_required
+def delete_link(link_id):
+    user_id = session.get('user_id')
+    with get_db_connection() as conn:
+        # Criar cursor para todas as operações
+        cursor = conn.cursor()
+        
+        # Verificar se o link pertence ao usuário atual
+        cursor.execute('SELECT * FROM custom_links WHERE id = %s AND user_id = %s', 
+                      (link_id, user_id))
+        link = cursor.fetchone()
+        
+        if not link:
+            return jsonify({'success': False, 'error': 'Link não encontrado ou sem permissão'}), 403
+        
+        # Não permitir excluir o link padrão (agora whatsapp)
+        if link['link_name'] == 'whatsapp' and link['prefix'] == 1:
+            return jsonify({'success': False, 'error': 'Não é possível excluir o link padrão WhatsApp'}), 400
+        
+        cursor.execute('DELETE FROM custom_links WHERE id = %s', (link_id,))
+        conn.commit()
+        return jsonify({'success': True})
+
+@app.route('/api/links/<int:link_id>', methods=['PUT'])
+@login_required
+def update_link(link_id):
+    user_id = session.get('user_id')
+    data = request.json
+    
+    with get_db_connection() as conn:
+        # Criar cursor para todas as operações
+        cursor = conn.cursor()
+        
+        # Verificar se o link pertence ao usuário atual
+        cursor.execute('SELECT * FROM custom_links WHERE id = %s AND user_id = %s', 
+                      (link_id, user_id))
+        link = cursor.fetchone()
+        
+        if not link:
+            return jsonify({'success': False, 'error': 'Link não encontrado ou sem permissão'}), 403
+        
+        # Atualizar o link (apenas custom_message e is_active)
+        # Nota: Não permitimos mais alterar o link_name para evitar confusão com o sistema de prefixos
+        if 'custom_message' in data:
+            cursor.execute('UPDATE custom_links SET custom_message = %s WHERE id = %s', 
+                          (data['custom_message'], link_id))
+        
+        if 'is_active' in data:
+            # Usar valor inteiro para compatibilidade com a coluna is_active
+            is_active_int = 1 if data['is_active'] else 0
+            cursor.execute('UPDATE custom_links SET is_active = %s WHERE id = %s', 
+                          (is_active_int, link_id))
+            print(f"Atualizando link {link_id} com is_active={is_active_int}")
+        
+        conn.commit()
+        return jsonify({'success': True})
+
+# Lista de rotas reservadas que não podem ser usadas como link_name
+reserved_routes = [
+    '', 'api', 'login', 'logout', 'admin', 'dashboard', 'administracao', 
+    'static', 'redirect', 'favicon.ico', 'robots.txt'
+]
+
+# Rota para redirecionamento direto ao WhatsApp (mantém o prefixo redirect por compatibilidade)
+@app.route('/redirect/<link_name>')
+def redirect_whatsapp_with_prefix(link_name):
+    return redirect_whatsapp_func(link_name, None, None)
+
+# Nova rota para redirecionamento com ID de usuário/nome
+@app.route('/<int:user_id>/<link_name>')
+def redirect_whatsapp_with_user_id(user_id, link_name):
+    return redirect_whatsapp_func(link_name, None, user_id)
+
+# Rota para compatibilidade com o sistema antigo usando prefixo
+@app.route('/<int:prefix>/<link_name>')
+def redirect_whatsapp_with_counter(prefix, link_name):
+    # Se o prefixo for muito alto, é mais provável que seja um ID de usuário
+    if prefix > 100:  # Assumindo que prefixos são geralmente baixos
+        return redirect_whatsapp_func(link_name, None, prefix)
+    return redirect_whatsapp_func(link_name, prefix, None)
+
+# Rota simplificada para compatibilidade com links antigos (tenta usar o link padrão)
+@app.route('/<link_name>')
+def redirect_whatsapp(link_name):
+    # Verificar se o link_name não é uma rota reservada
+    if link_name in reserved_routes:
+        abort(404)  # Retorna 404 Not Found para evitar conflito com rotas existentes
+    return redirect_whatsapp_func(link_name, 1, None)  # Tentar com prefixo 1 (padrão)
+
+# Função que contém a lógica de redirecionamento
+def redirect_whatsapp_func(link_name, prefix=None, user_id=None):
+    redirect_start_time = datetime.now()
+    
+    # Melhorar a captura do IP para considerar proxies
+    if request.headers.get('X-Forwarded-For'):
+        client_ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    else:
+        client_ip = request.remote_addr
+    
+    # Capturar User-Agent
+    user_agent = request.headers.get('User-Agent', '')
+    
+    try:
+        with get_db_connection() as conn:
+            # Consulta base para encontrar o link - ajustada para compatibilidade
+            query = '''
+                SELECT cl.*, u.id as owner_id 
+                FROM custom_links cl
+                JOIN users u ON cl.user_id = u.id
+                WHERE cl.link_name = %s AND cl.is_active IS TRUE
+            '''
+            params = [link_name]
+            
+            # Adicionar condições específicas
+            if user_id is not None:
+                query += " AND cl.user_id = %s"
+                params.append(user_id)
+            # Se não houver user_id mas houver prefixo, usar o prefixo
+            elif prefix is not None:
+                query += " AND cl.prefix = %s"
+                params.append(prefix)
+            
+            # Buscar o link usando cursor
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            link = cursor.fetchone()
+            
+            if not link:
+                # Tentar encontrar qualquer link com este nome se não encontrou específico
+                if not prefix and not user_id:
+                    fallback_query = '''
+                        SELECT cl.*, u.id as owner_id 
+                        FROM custom_links cl
+                        JOIN users u ON cl.user_id = u.id
+                        WHERE cl.link_name = %s AND cl.is_active IS TRUE
+                        LIMIT 1
+                    '''
+                    cursor.execute(fallback_query, [link_name])
+                    link = cursor.fetchone()
+                
+                if not link:
+                    logging.error(f"Link não encontrado: link_name={link_name}, prefix={prefix}, user_id={user_id}")
+                    return render_template('index.html', error='Link não encontrado ou inativo')
+            
+            logging.info(f"Link encontrado: ID={link['id']}, user_id={link['user_id']}, nome={link_name}")
+            
+            # Incrementar contador de cliques
+            try:
+                cursor = conn.cursor()
+                cursor.execute('UPDATE custom_links SET click_count = COALESCE(click_count, 0) + 1 WHERE id = %s', (link['id'],))
+                conn.commit()
+                logging.info(f"Contador de cliques incrementado para o link_id={link['id']}")
+            except Exception as e:
+                logging.error(f"Erro ao incrementar contador de cliques: {str(e)}")
+                # Continuar mesmo se falhar o contador
+            
+            # Obter todos os números ativos deste usuário
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM whatsapp_numbers WHERE user_id = %s AND is_active IS TRUE', (link['owner_id'],))
+            numbers = cursor.fetchall()
+            
+            if not numbers:
+                logging.error(f"Nenhum número ativo encontrado para user_id={link['owner_id']}")
+                return render_template('index.html', error='Não há números disponíveis para este link.')
+            
+            logging.info(f"Encontrados {len(numbers)} números ativos para o usuário {link['owner_id']}")
+            
+            # Selecionar um número - lógica melhorada para balanceamento
+            selected_number = select_balanced_number(conn, numbers, link['id'])
+            
+            # Incrementar contador do número selecionado se a coluna existir
+            try:
+                cursor = conn.cursor()
+                cursor.execute('UPDATE whatsapp_numbers SET redirect_count = redirect_count + 1 WHERE id = %s', (selected_number['id'],))
+            except Exception as e:
+                logging.error(f"Erro ao incrementar contador do número: {str(e)}")
+                # Continuar mesmo com erro no contador
+            
+            # Inserir log de redirecionamento
+            try:
+                cursor = conn.cursor()
+                if app.config['USE_POSTGRES']:
+                    cursor.execute('''
+                        INSERT INTO redirect_logs (link_id, number_id, user_agent, ip_address, redirect_time)
+                        VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                    ''', (link['id'], selected_number['id'], user_agent, client_ip))
+                    log_id = db_adapter.db_adapter.get_last_insert_id('redirect_logs')
+                else:
+                    cursor.execute('''
+                        INSERT INTO redirect_logs (link_id, number_id, user_agent, ip_address, redirect_time)
+                        VALUES (?, ?, ?, ?, datetime('now'))
+                    ''', (link['id'], selected_number['id'], user_agent, client_ip))
+                    log_id = cursor.lastrowid
+                
+                conn.commit()
+            except Exception as e:
+                logging.error(f"Erro ao inserir log de redirecionamento: {str(e)}")
+                log_id = None
+            
+            # Processar informações de localização em segundo plano (não bloquear o redirecionamento)
+            try:
+                if log_id:
+                    # Obter informações de localização do IP
+                    location_info = get_location_from_ip(client_ip)
+                    if location_info:
+                        # Atualizar o log com informações de localização
+                        cursor = conn.cursor()
+                        cursor.execute('''
+                            UPDATE redirect_logs 
+                            SET city = %s, region = %s, country = %s, latitude = %s, longitude = %s
+                            WHERE id = %s
+                        ''', (
+                            location_info.get('city'), 
+                            location_info.get('region'), 
+                            location_info.get('country'), 
+                            location_info.get('lat'), 
+                            location_info.get('lon'),
+                            log_id
+                        ))
+                        conn.commit()
+            except Exception as e:
+                logging.error(f"Erro ao processar localização: {str(e)}")
+            
+            # Formatar o número para o WhatsApp - corrigido para usar o nome correto da coluna
+            formatted_phone = format_phone_number(selected_number['phone_number'])
+            
+            # Preparar a mensagem personalizada
+            message = ''
+            if link.get('message_template'):
+                message = f"&text={link['message_template']}"
+                # Atualizar o log com a mensagem usada
+                cursor = conn.cursor()
+                cursor.execute('UPDATE redirect_logs SET message = %s WHERE id = %s', (link['message_template'], log_id))
+                conn.commit()
+            elif link.get('custom_message'):  # Verificar campo alternativo para mensagem
+                message = f"&text={link['custom_message']}"
+                # Atualizar o log com a mensagem usada
+                cursor = conn.cursor()
+                cursor.execute('UPDATE redirect_logs SET message = %s WHERE id = %s', (link['custom_message'], log_id))
+                conn.commit()
+            
+            # Calcular tempo de redirecionamento
+            redirect_time = (datetime.now() - redirect_start_time).total_seconds()
+            logging.info(f"Redirecionamento para {formatted_phone} concluído em {redirect_time:.4f} segundos.")
+            
+            # Redirecionar para o WhatsApp
+            whatsapp_url = f"https://wa.me/{formatted_phone}{message}"
+            return redirect(whatsapp_url)
+    
+    except Exception as e:
+        # Retornar uma página de erro genérica
+        logging.error(f"Erro no redirecionamento: {str(e)}")
+        redirect_time = (datetime.now() - redirect_start_time).total_seconds()
+        return render_template('index.html', error='Ocorreu um erro ao processar seu redirecionamento. Tente novamente.')
+
+# Função para selecionar um número de forma balanceada
+def select_balanced_number(conn, numbers, link_id):
+    try:
+        # Verificar se há apenas um número disponível
+        if len(numbers) == 1:
+            return numbers[0]
+        
+        # Fallback para seleção aleatória se houver erro
+        selected_number = random.choice(numbers)
+        
+        # Obter contagem de redirecionamentos para cada número (último dia)
+        numeros_para_selecao = []
+        
+        # Usar SQL mais eficiente para PostgreSQL
+        if app.config['USE_POSTGRES']:
+            # Consulta única com subquery para obter todas as estatísticas de uma vez
+            query = '''
+                WITH link_stats AS (
+                    SELECT 
+                        number_id, 
+                        COUNT(*) FILTER (WHERE link_id = %s) AS link_specific_count,
+                        COUNT(*) AS total_count
+                    FROM redirect_logs 
+                    WHERE redirect_time >= CURRENT_TIMESTAMP - INTERVAL '1 day'
+                    GROUP BY number_id
+                )
+                SELECT 
+                    n.id, n.phone_number, n.description, 
+                    COALESCE(s.total_count, 0) AS redirect_count,
+                    COALESCE(s.link_specific_count, 0) AS link_specific_count
+                FROM whatsapp_numbers n
+                LEFT JOIN link_stats s ON n.id = s.number_id
+                WHERE n.id IN (%s)
+            '''
+            
+            # Construir placeholders para a lista de IDs de números
+            id_list = ','.join(['%s'] * len(numbers))
+            query = query.replace('%s)', f'{id_list})')
+            
+            # Preparar parâmetros: link_id seguido pelos IDs dos números
+            params = [link_id] + [n['id'] for n in numbers]
+            
+            # Executar a consulta usando cursor
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            result = cursor.fetchall()
+            
+            # Processar resultados
+            for row in result:
+                numeros_para_selecao.append({
+                    'id': row['id'],
+                    'phone_number': row['phone_number'],
+                    'description': row['description'],
+                    'redirect_count': row['redirect_count'],
+                    'link_specific_count': row['link_specific_count']
+                })
+        else:
+            # Manter a abordagem original para SQLite
+            cursor = conn.cursor()
+            for num in numbers:
+                # Calcular a quantidade de redirecionamentos nas últimas 24 horas
+                cursor.execute('''
+                    SELECT COUNT(*) as count 
+                    FROM redirect_logs 
+                    WHERE number_id = ? 
+                    AND redirect_time >= datetime('now', '-1 day')
+                ''', (num['id'],))
+                redirect_count = cursor.fetchone()['count']
+                
+                # Se temos o ID do link, verificar redirecionamentos específicos do link
+                link_specific_count = 0
+                if link_id:
+                    cursor.execute('''
+                        SELECT COUNT(*) as count 
+                        FROM redirect_logs 
+                        WHERE number_id = ? AND link_id = ? 
+                        AND redirect_time >= datetime('now', '-1 day')
+                    ''', (num['id'], link_id))
+                    link_specific_count = cursor.fetchone()['count']
+                
+                # Adicionar número com suas estatísticas para o processo de seleção
+                numeros_para_selecao.append({
+                    'id': num['id'],
+                    'phone_number': num['phone_number'],
+                    'description': num.get('description', ''),
+                    'redirect_count': redirect_count,
+                    'link_specific_count': link_specific_count
+                })
+        
+        # Estratégia 1: Selecionar o número com menos redirecionamentos no último dia
+        if len(numeros_para_selecao) > 0:
+            # Ordenar por contagem total
+            numeros_ordenados = sorted(numeros_para_selecao, key=lambda x: x['redirect_count'])
+            
+            # Selecionar o número com menos redirecionamentos (o primeiro da lista ordenada)
+            selected_number = numeros_ordenados[0]
+            
+            # Se há números com a mesma contagem mínima, fazer seleção balanceada entre eles
+            min_redirects = numeros_ordenados[0]['redirect_count']
+            numeros_minimos = [n for n in numeros_ordenados if n['redirect_count'] == min_redirects]
+            
+            if len(numeros_minimos) > 1:
+                # Fazer uma segunda rodada de seleção baseada em redirecionamentos específicos do link
+                if link_id:
+                    numeros_minimos = sorted(numeros_minimos, key=lambda x: x['link_specific_count'])
+                    min_link_redirects = numeros_minimos[0]['link_specific_count']
+                    numeros_final = [n for n in numeros_minimos if n['link_specific_count'] == min_link_redirects]
+                    
+                    if len(numeros_final) > 1:
+                        # Se ainda temos empate, escolher aleatoriamente
+                        selected_number = random.choice(numeros_final)
+                    else:
+                        selected_number = numeros_final[0]
+                else:
+                    # Se não temos ID do link, escolher aleatoriamente entre os números com contagem mínima
+                    selected_number = random.choice(numeros_minimos)
+        
+        # Registrar o número selecionado para diagnóstico
+        logging.info(f"Número selecionado para redirecionamento: ID={selected_number['id']}, fone={selected_number['phone_number']}")
+        
+        return selected_number
+    except Exception as e:
+        # Em caso de erro, voltar para o método padrão
+        logging.error(f"Erro na seleção balanceada de números: {str(e)}")
+        return random.choice(numbers)
+
+# Adicionando função admin_backup para evitar erros
+@app.route('/admin_backup')
+@login_required
+def admin_backup():
+    # Verifica se o usuário é o administrador
+    if session.get('username') != 'felipe':
+        flash('Acesso restrito ao administrador.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Redirecionando para o dashboard pois a funcionalidade de backup não está implementada
+    flash('A funcionalidade de backup está temporariamente indisponível.', 'warning')
+    return redirect(url_for('dashboard'))
+
+# Adicionando função admin_usuarios para evitar erros
+@app.route('/admin_usuarios')
+@login_required
+def admin_usuarios():
+    # Verifica se o usuário é o administrador
+    if session.get('username') != 'felipe':
+        flash('Acesso restrito ao administrador.', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Redirecionando para o dashboard pois a funcionalidade de gerenciamento de usuários não está implementada
+    flash('A funcionalidade de gerenciamento de usuários está temporariamente indisponível.', 'warning')
+    return redirect(url_for('dashboard'))
+
+# Função para obter localização a partir do IP
+def get_location_from_ip(ip_address):
+    """
+    Obtém dados de localização geográfica a partir de um endereço IP
+    usando a API gratuita ip-api.com que oferece melhor precisão
+    
+    Args:
+        ip_address: Endereço IP para consulta
+        
+    Returns:
+        Um dicionário com dados de localização ou fallback para localização padrão
+    """
+    # Verificar se o IP é local/privado e usar endereço padrão nesse caso
+    local_ips = ['127.0.0.1', 'localhost', '::1', '0.0.0.0']
+    private_ranges = [
+        '10.', '192.168.', '172.16.', '172.17.', '172.18.', '172.19.',
+        '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.',
+        '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.'
+    ]
+    
+    # Checar se é IP local ou privado
+    if ip_address in local_ips or any(ip_address.startswith(prefix) for prefix in private_ranges):
+        print(f"IP {ip_address} é local/privado. Usando IP padrão para geolocalização.")
+        # Se for IP local/desenvolvimento, retornar localidade padrão
+        return {
+            'city': 'Curitiba',
+            'lat': -25.4372,
+            'lon': -49.2699,
+            'country': 'Brasil',
+            'region': 'Paraná'
+        }
+    
+    try:
+        # Usar ip-api.com em vez de ipapi.co para melhor precisão com IPs brasileiros
+        response = requests.get(f'http://ip-api.com/json/{ip_address}?fields=status,country,regionName,city,lat,lon', timeout=3)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == 'success':
+                return {
+                    'city': data.get('city', 'Desconhecido'),
+                    'lat': data.get('lat', 0),
+                    'lon': data.get('lon', 0),
+                    'country': data.get('country', 'Desconhecido'),
+                    'region': data.get('regionName', 'Desconhecido')
+                }
+            else:
+                print(f"Erro na API de geolocalização para IP {ip_address}: {data}")
+        else:
+            print(f"Falha na API de geolocalização. Status: {response.status_code}")
+            
+    except Exception as e:
+        print(f"Erro ao obter localização do IP {ip_address}: {str(e)}")
+    
+    # Segunda tentativa com outra API caso a primeira falhe
+    try:
+        response = requests.get(f'https://ipapi.co/{ip_address}/json/', timeout=3)
+        if response.status_code == 200:
+            data = response.json()
+            if 'error' not in data:
+                return {
+                    'city': data.get('city', 'Desconhecido'),
+                    'lat': data.get('latitude', 0),
+                    'lon': data.get('longitude', 0),
+                    'country': data.get('country_name', 'Desconhecido'),
+                    'region': data.get('region', 'Desconhecido')
+                }
+    except:
+        # Ignorar erro na segunda tentativa, já usaremos o fallback
+        pass
+        
+    # Fallback para localização padrão em caso de erro
+    return {
+        'city': 'Curitiba',
+        'lat': -25.4372,
+        'lon': -49.2699,
+        'country': 'Brasil',
+        'region': 'Paraná'
+    }
+
+# Função para formatar números de telefone
+def format_phone_number(phone):
+    """Formata um número de telefone para uso no WhatsApp (remove caracteres não numéricos)"""
+    # Remover todos os caracteres não numéricos
+    clean_number = ''.join(filter(str.isdigit, phone))
+    return clean_number
+
+# Função para obter condições de filtro padronizadas
+def get_standard_filter_conditions(user_id, link_id, start_date, end_date):
+    """
+    Cria condições SQL e parâmetros padronizados para filtros, 
+    garantindo consistência entre diferentes consultas.
+    """
+    # Construir a condição de link_id
+    link_condition = "cl.user_id = %s"
+    params = [user_id]
+    
+    if link_id != 'all' and link_id.isdigit():
+        link_condition += " AND cl.id = %s"
+        params.append(int(link_id))
+    
+    # Adicionar condições de data se fornecidas
+    date_condition = ""
+    if start_date:
+        date_condition += " AND DATE(rl.redirect_time) >= %s::date"
+        params.append(start_date)
+    if end_date:
+        date_condition += " AND DATE(rl.redirect_time) <= %s::date"
+        params.append(end_date)
+    
+    return link_condition, date_condition, params
+
+# Função para validar consistência de dados
+def validate_data_consistency(conn, user_id, link_id, start_date, end_date):
+    """
+    Executa consultas para verificar consistência entre diferentes fontes de dados.
+    Usado para diagnóstico de discrepâncias.
+    """
+    # Criar cursor para operações no banco
+    cursor = conn.cursor()
+    
+    link_condition, date_condition, params = get_standard_filter_conditions(user_id, link_id, start_date, end_date)
+    
+    # Consulta 1: Total de registros sem junção com whatsapp_numbers
+    query1 = f'''
+        SELECT COUNT(*) as total
+        FROM redirect_logs rl
+        JOIN custom_links cl ON rl.link_id = cl.id
+        WHERE {link_condition} {date_condition}
+    '''
+    
+    # Consulta 2: Total de registros com junção de whatsapp_numbers
+    query2 = f'''
+        SELECT COUNT(*) as total
+        FROM redirect_logs rl
+        JOIN custom_links cl ON rl.link_id = cl.id
+        JOIN whatsapp_numbers wn ON rl.number_id = wn.id
+        WHERE {link_condition} {date_condition}
+    '''
+    
+    # Consulta 3: Total por número, somado
+    query3 = f'''
+        SELECT rl.number_id, COUNT(*) as count
+        FROM redirect_logs rl
+        JOIN custom_links cl ON rl.link_id = cl.id
+        WHERE {link_condition} {date_condition}
+        GROUP BY rl.number_id
+    '''
+    
+    # Executar consultas e comparar
+    cursor.execute(query1, params)
+    total1 = cursor.fetchone()['total']
+    
+    cursor.execute(query2, params)
+    total2 = cursor.fetchone()['total']
+    
+    cursor.execute(query3, params)
+    number_counts = cursor.fetchall()
+    total3 = sum(row['count'] for row in number_counts)
+    
+    # Verificação detalhada dos números
+    print(f"Validação de consistência com parâmetros: {params}")
+    print(f"Total consulta básica: {total1}")
+    print(f"Total consulta com números: {total2}")
+    print(f"Total soma por números: {total3}")
+    
+    if total1 != total2 or total1 != total3:
+        print("⚠️ INCONSISTÊNCIA DETECTADA:")
+        print(f"  - Total básico vs com números: {total1} vs {total2}")
+        print(f"  - Total básico vs soma por número: {total1} vs {total3}")
+        
+        # Verificar se há registros orfãos (sem número válido)
+        orphan_query = f'''
+            SELECT rl.id, rl.number_id, rl.redirect_time 
+            FROM redirect_logs rl
+            JOIN custom_links cl ON rl.link_id = cl.id
+            LEFT JOIN whatsapp_numbers wn ON rl.number_id = wn.id
+            WHERE {link_condition} {date_condition} AND wn.id IS NULL
+        '''
+        
+        cursor.execute(orphan_query, params)
+        orphans = cursor.fetchall()
+        if orphans:
+            print(f"🔴 Encontrados {len(orphans)} registros com números inválidos")
+
+# Função para obter o próximo prefixo disponível para links
+def get_next_prefix(conn, user_id, link_name):
+    """
+    Determina o próximo prefixo disponível para um novo link
+    baseado nos prefixos existentes para o mesmo link_name
+    """
+    # Criar cursor para operações no banco
+    cursor = conn.cursor()
+    
+    # Verificar se já existem prefixos para este link_name
+    if app.config['USE_POSTGRES']:
+        cursor.execute(
+            'SELECT MAX(prefix) as max_prefix FROM custom_links WHERE user_id = %s AND link_name = %s', 
+            (user_id, link_name)
+        )
+        result = cursor.fetchone()
+    else:
+        cursor.execute(
+            'SELECT MAX(prefix) as max_prefix FROM custom_links WHERE user_id = ? AND link_name = ?', 
+            (user_id, link_name)
+        )
+        result = cursor.fetchone()
+    
+    # Se já existe um prefixo, incrementar em 1
+    if result and result['max_prefix'] is not None:
+        return result['max_prefix'] + 1
+    
+    # Se não existir, começar do 1
+    return 1
+
+# Configuração de logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# API para estatísticas
+@app.route('/api/stats/summary')
+@login_required
+def get_stats_summary():
+    user_id = session.get('user_id')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    link_id = request.args.get('link_id', 'all')
+    
+    if not start_date or not end_date:
+        return jsonify({'error': 'Datas de início e fim são obrigatórias'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Base query para contagem total
+            link_condition, date_condition, params = get_standard_filter_conditions(user_id, link_id, start_date, end_date)
+            
+            # Total de cliques no período
+            total_query = f'''
+                SELECT COUNT(*) as total
+                FROM redirect_logs rl
+                JOIN custom_links cl ON rl.link_id = cl.id
+                WHERE {link_condition} {date_condition}
+            '''
+            
+            cursor.execute(total_query, params)
+            total_result = cursor.fetchone()
+            total_clicks = total_result['total'] if total_result else 0
+            
+            # Total de links ativos
+            active_links_query = f'''
+                SELECT COUNT(DISTINCT cl.id) as total
+                FROM custom_links cl
+                JOIN redirect_logs rl ON cl.id = rl.link_id
+                WHERE {link_condition} {date_condition}
+            '''
+            
+            cursor.execute(active_links_query, params)
+            active_links_result = cursor.fetchone()
+            active_links = active_links_result['total'] if active_links_result else 0
+            
+            # Total de números ativos 
+            active_numbers_query = f'''
+                SELECT COUNT(DISTINCT rl.number_id) as total
+                FROM redirect_logs rl
+                JOIN custom_links cl ON rl.link_id = cl.id
+                WHERE {link_condition} {date_condition}
+            '''
+            
+            cursor.execute(active_numbers_query, params)
+            active_numbers_result = cursor.fetchone()
+            active_numbers = active_numbers_result['total'] if active_numbers_result else 0
+            
+            # Cliques por dia (média)
+            daily_avg = 0
+            if start_date and end_date:
+                # Calcular número de dias entre datas
+                start = datetime.strptime(start_date, '%Y-%m-%d')
+                end = datetime.strptime(end_date, '%Y-%m-%d')
+                days = (end - start).days + 1  # Incluir ambos os dias
+                
+                if days > 0:
+                    daily_avg = round(total_clicks / days, 2)
+            
+            # Retornar dados em formato JSON
+            return jsonify({
+                'total_clicks': total_clicks,
+                'active_links': active_links,
+                'active_numbers': active_numbers,
+                'daily_avg': daily_avg,
+                'period': {
+                    'start': start_date,
+                    'end': end_date
+                }
+            })
+    except Exception as e:
+        logging.error(f"Erro ao obter estatísticas: {str(e)}")
+        return jsonify({'error': 'Erro ao processar estatísticas'}), 500
+
+@app.route('/api/stats/by-number')
+@login_required
+def get_stats_by_number():
+    user_id = session.get('user_id')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    link_id = request.args.get('link_id', 'all')
+    
+    if not start_date or not end_date:
+        return jsonify({'error': 'Datas de início e fim são obrigatórias'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            # Base query para contagem por número
+            link_condition, date_condition, params = get_standard_filter_conditions(user_id, link_id, start_date, end_date)
+            
+            # Query principal
+            query = f'''
+                SELECT 
+                    wn.id as number_id,
+                    wn.phone_number,
+                    wn.description,
+                    COUNT(rl.id) as clicks
+                FROM redirect_logs rl
+                JOIN custom_links cl ON rl.link_id = cl.id
+                JOIN whatsapp_numbers wn ON rl.number_id = wn.id
+                WHERE {link_condition} {date_condition}
+                GROUP BY wn.id, wn.phone_number, wn.description
+                ORDER BY clicks DESC
+            '''
+            
+            # No PostgreSQL, precisamos usar cursor para fetchall
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+            
+            # Verificar registros órfãos (números que foram excluídos)
+            orphan_query = f'''
+                SELECT COUNT(*) as orphan_count
+                FROM redirect_logs rl
+                JOIN custom_links cl ON rl.link_id = cl.id
+                LEFT JOIN whatsapp_numbers wn ON rl.number_id = wn.id
+                WHERE {link_condition} {date_condition} AND wn.id IS NULL
+            '''
+            
+            cursor.execute(orphan_query, params)
+            orphan_result = cursor.fetchone()
+            orphan_count = orphan_result['orphan_count'] if orphan_result else 0
+            
+            # Preparar resultado
+            numbers_data = []
+            for row in results:
+                numbers_data.append({
+                    'id': row['number_id'],
+                    'phone': row['phone_number'],
+                    'description': row['description'],
+                    'clicks': row['clicks']
+                })
+            
+            # Adicionar contagem de órfãos se existirem
+            if orphan_count > 0:
+                numbers_data.append({
+                    'id': None,
+                    'phone': 'Números excluídos',
+                    'description': 'Números que foram removidos',
+                    'clicks': orphan_count
+                })
+            
+            return jsonify({
+                'numbers': numbers_data,
+                'total': sum(item['clicks'] for item in numbers_data),
+                'period': {
+                    'start': start_date,
+                    'end': end_date
+                }
+            })
+    except Exception as e:
+        logging.error(f"Erro ao obter estatísticas por número: {str(e)}")
+        return jsonify({'error': 'Erro ao processar estatísticas por número'}), 500
+
+@app.route('/api/stats/map')
+@login_required
+def get_stats_map():
+    user_id = session.get('user_id')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date') 
+    link_id = request.args.get('link_id', 'all')
+    
+    if not start_date or not end_date:
+        return jsonify({'error': 'Datas de início e fim são obrigatórias'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            # Base query para dados geográficos
+            link_condition, date_condition, params = get_standard_filter_conditions(user_id, link_id, start_date, end_date)
+            
+            # Query principal para dados de mapa
+            query = f'''
+                SELECT 
+                    rl.country, 
+                    rl.region, 
+                    rl.city, 
+                    rl.latitude, 
+                    rl.longitude, 
+                    COUNT(*) as clicks
+                FROM redirect_logs rl
+                JOIN custom_links cl ON rl.link_id = cl.id
+                WHERE {link_condition} {date_condition}
+                    AND rl.latitude IS NOT NULL 
+                    AND rl.longitude IS NOT NULL
+                GROUP BY rl.country, rl.region, rl.city, rl.latitude, rl.longitude
+                ORDER BY clicks DESC
+            '''
+            
+            # Query para total de cliques com e sem geolocalização
+            total_query = f'''
+                SELECT 
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN rl.latitude IS NOT NULL AND rl.longitude IS NOT NULL THEN 1 END) as geo_count
+                FROM redirect_logs rl
+                JOIN custom_links cl ON rl.link_id = cl.id
+                WHERE {link_condition} {date_condition}
+            '''
+            
+            # No PostgreSQL, precisamos usar cursor para fetchall
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+            
+            cursor.execute(total_query, params)
+            totals = cursor.fetchone()
+            
+            # Preparar dados de geolocalização
+            geo_data = []
+            for row in results:
+                if row['latitude'] and row['longitude']:
+                    geo_data.append({
+                        'lat': float(row['latitude']),
+                        'lng': float(row['longitude']),
+                        'city': row['city'],
+                        'region': row['region'],
+                        'country': row['country'],
+                        'clicks': row['clicks']
+                    })
+            
+            return jsonify({
+                'locations': geo_data,
+                'stats': {
+                    'total': totals['total'],
+                    'geo_count': totals['geo_count'],
+                    'no_geo_count': totals['total'] - totals['geo_count']
+                },
+                'period': {
+                    'start': start_date,
+                    'end': end_date
+                }
+            })
+    except Exception as e:
+        logging.error(f"Erro ao obter dados de mapa: {str(e)}")
+        return jsonify({'error': 'Erro ao processar dados de mapa'}), 500
+
+@app.route('/api/redirects/recent')
+@login_required
+def get_recent_redirects():
+    user_id = session.get('user_id')
+    limit = request.args.get('limit', '10')
+    page = request.args.get('page', '1')
+    link_id = request.args.get('link_id', 'all')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    show_all = request.args.get('all', 'false') == 'true'
+    
+    # Validação dos parâmetros
+    try:
+        limit = int(limit)
+        page = int(page)
+        if limit < 1 or limit > 100:
+            limit = 10
+        if page < 1:
+            page = 1
+    except:
+        return jsonify({'error': 'Parâmetros de paginação inválidos'}), 400
+    
+    try:
+        with get_db_connection() as conn:
+            # Base query para dados de redirecionamento
+            link_condition, date_condition, params = get_standard_filter_conditions(user_id, link_id, start_date, end_date)
+            
+            # Calcular offset para paginação
+            offset = (page - 1) * limit
+            
+            # Query principal
+            query = f'''
+                SELECT 
+                    rl.id,
+                    rl.redirect_time, 
+                    cl.link_name, 
+                    cl.id as link_id,
+                    rl.number_id,
+                    wn.phone_number,
+                    rl.user_agent,
+                    rl.ip_address,
+                    rl.city,
+                    rl.region,
+                    rl.country,
+                    rl.message
+                FROM redirect_logs rl
+                JOIN custom_links cl ON rl.link_id = cl.id
+                LEFT JOIN whatsapp_numbers wn ON rl.number_id = wn.id
+                WHERE {link_condition} {date_condition}
+                ORDER BY rl.redirect_time DESC
+                LIMIT {limit} OFFSET {offset}
+            '''
+            
+            # Query para contagem total (para paginação)
+            count_query = f'''
+                SELECT COUNT(*) as total
+                FROM redirect_logs rl
+                JOIN custom_links cl ON rl.link_id = cl.id
+                WHERE {link_condition} {date_condition}
+            '''
+            
+            # Executar queries com cursor PostgreSQL
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            redirects = cursor.fetchall()
+            
+            cursor.execute(count_query, params)
+            total_count = cursor.fetchone()['total']
+            
+            # Preparar resultado
+            result = []
+            for row in redirects:
+                # Processar user agent para detecção de dispositivo
+                device_info = {
+                    'type': 'desktop',
+                    'browser': 'Desconhecido'
+                }
+                
+                ua = row['user_agent'].lower() if row['user_agent'] else ''
+                if ua:
+                    # Detectar tipo de dispositivo (simplificado)
+                    if 'mobile' in ua or 'android' in ua or 'iphone' in ua:
+                        device_info['type'] = 'mobile'
+                    elif 'tablet' in ua or 'ipad' in ua:
+                        device_info['type'] = 'tablet'
+                    
+                    # Detectar navegador (simplificado)
+                    if 'chrome' in ua and 'chromium' not in ua:
+                        device_info['browser'] = 'Chrome'
+                    elif 'firefox' in ua:
+                        device_info['browser'] = 'Firefox'
+                    elif 'safari' in ua and 'chrome' not in ua:
+                        device_info['browser'] = 'Safari'
+                    elif 'edge' in ua:
+                        device_info['browser'] = 'Edge'
+                    elif 'opera' in ua or 'opr/' in ua:
+                        device_info['browser'] = 'Opera'
+                    elif 'msie' in ua or 'trident' in ua:
+                        device_info['browser'] = 'Internet Explorer'
+                
+                # Formatar data para exibição amigável
+                timestamp = row['redirect_time']
+                if isinstance(timestamp, str):
+                    try:
+                        timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+                    except:
+                        pass
+                
+                formatted_date = timestamp.strftime('%d/%m/%Y %H:%M') if hasattr(timestamp, 'strftime') else str(timestamp)
+                
+                # Adicionar dados processados ao resultado
+                result.append({
+                    'id': row['id'],
+                    'timestamp': str(row['redirect_time']),
+                    'formatted_date': formatted_date,
+                    'link_name': row['link_name'],
+                    'link_id': row['link_id'],
+                    'number_id': row['number_id'],
+                    'phone': row['phone_number'] if row['phone_number'] else 'Número excluído',
+                    'location': {
+                        'city': row['city'] or 'Desconhecido',
+                        'region': row['region'] or '',
+                        'country': row['country'] or ''
+                    },
+                    'device': device_info,
+                    'message': row['message'] or '',
+                    'ip': row['ip_address'] if show_all else None  # Só mostrar IP se explicitamente permitido
+                })
+            
+            # Calcular total de páginas
+            total_pages = (total_count + limit - 1) // limit
+            
+            return jsonify({
+                'redirects': result,
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': total_count,
+                    'pages': total_pages
+                },
+                'period': {
+                    'start': start_date,
+                    'end': end_date
+                }
+            })
+    except Exception as e:
+        logging.error(f"Erro ao obter redirecionamentos recentes: {str(e)}")
+        return jsonify({'error': 'Erro ao processar redirecionamentos recentes'}), 500
+
+# Inicializar o servidor se este arquivo for executado diretamente
+if __name__ == '__main__':
+    app.run(host='127.0.0.1', port=3000, debug=True)

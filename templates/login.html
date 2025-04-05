@@ -87,7 +87,7 @@
                 </div>
                 {% endif %}
                 
-                <form method="POST" action="{{ url_for('login') }}">
+                <form method="POST" action="{{ url_for('auth.login') }}">
                     <div class="mb-3">
                         <label for="username" class="form-label">Usuário</label>
                         <div class="input-group">
@@ -106,9 +106,17 @@
                         <button type="submit" class="btn btn-primary btn-lg">Entrar</button>
                     </div>
                 </form>
+                <div class="text-center mt-4">
+                    <p>Não tem uma conta? <a href="#" class="text-primary">Registre-se</a></p>
+                    <a href="/" class="text-decoration-none">
+                        <button type="button" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Voltar para o Início
+                        </button>
+                    </a>
+                </div>
             </div>
             <div class="card-footer text-center py-3">
-                <a href="{{ url_for('index') }}" class="text-decoration-none">
+                <a href="/" class="text-decoration-none">
                     <i class="bi bi-arrow-left me-1"></i> Voltar para página inicial
                 </a>
             </div>

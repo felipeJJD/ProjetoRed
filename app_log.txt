@@ -1,0 +1,644 @@
+/Users/oliveira/Downloads/Back redirect do pedro/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+[2025-04-04 00:05:44] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 00:05:44] [INFO] Inicializando banco de dados...
+[2025-04-04 00:05:46] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 00:05:46] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 00:05:46] [INFO] Banco de dados inicializado com sucesso!
+ * Serving Flask app 'app' (lazy loading)
+ * Environment: production
+   WARNING: This is a development server. Do not use it in a production deployment.
+   Use a production WSGI server instead.
+ * Debug mode: on
+[2025-04-04 00:05:46] [WARNING]  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+[2025-04-04 00:05:46] [INFO]  * Running on http://192.168.100.203:3000/ (Press CTRL+C to quit)
+[2025-04-04 00:05:46] [INFO]  * Restarting with stat
+/Users/oliveira/Downloads/Back redirect do pedro/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+[2025-04-04 00:05:47] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 00:05:47] [INFO] Inicializando banco de dados...
+[2025-04-04 00:05:48] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 00:05:48] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 00:05:49] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 00:05:49] [WARNING]  * Debugger is active!
+[2025-04-04 00:05:49] [INFO]  * Debugger PIN: 830-599-122
+[2025-04-04 03:31:43] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 03:31:43] [INFO] Iniciando registro de rotas
+[2025-04-04 03:31:43] [INFO] Registrando blueprint auth_bp com prefixo /auth
+[2025-04-04 03:31:43] [INFO] Registrando blueprint admin_bp com prefixo /admin
+[2025-04-04 03:31:43] [INFO] Registrando blueprint redirect_bp (sem prefixo)
+[2025-04-04 03:31:43] [INFO] Definindo rota raiz /
+[2025-04-04 03:31:43] [INFO] Registro de rotas concluído
+[2025-04-04 03:31:43] [INFO] Rotas registradas:
+[2025-04-04 03:31:43] [INFO]   admin.add_link: /admin/links/add {'POST', 'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   admin.add_number: /admin/numbers/add {'POST', 'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   admin.dashboard: /admin/dashboard {'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   admin.delete_link: /admin/links/delete/<int:link_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:31:43] [INFO]   admin.delete_number: /admin/numbers/delete/<int:number_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:31:43] [INFO]   admin.edit_link: /admin/links/edit/<int:link_id> {'POST', 'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   admin.edit_number: /admin/numbers/edit/<int:number_id> {'POST', 'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   admin.link_stats: /admin/links/stats/<int:link_id> {'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   admin.manage_links: /admin/links {'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   admin.manage_numbers: /admin/numbers {'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   auth.login: /auth/login {'POST', 'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   auth.logout: /auth/logout {'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   auth.register: /auth/register {'POST', 'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   index: / {'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   redirect.redirect_to_whatsapp: /<link_name> {'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   redirect.redirect_with_prefix: /<prefix>/<link_name> {'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO]   static: /static/<path:filename> {'OPTIONS', 'GET', 'HEAD'}
+[2025-04-04 03:31:43] [INFO] Inicializando banco de dados...
+[2025-04-04 03:31:44] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:31:45] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 03:31:45] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 03:31:45] [INFO] Iniciando servidor na porta 3000 com debug=True
+[2025-04-04 03:31:45] [WARNING]  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+[2025-04-04 03:31:45] [INFO]  * Running on http://192.168.100.203:3000/ (Press CTRL+C to quit)
+[2025-04-04 03:31:45] [INFO]  * Restarting with stat
+[2025-04-04 03:31:45] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 03:31:45] [INFO] Iniciando registro de rotas
+[2025-04-04 03:31:45] [INFO] Registrando blueprint auth_bp com prefixo /auth
+[2025-04-04 03:31:45] [INFO] Registrando blueprint admin_bp com prefixo /admin
+[2025-04-04 03:31:45] [INFO] Registrando blueprint redirect_bp (sem prefixo)
+[2025-04-04 03:31:45] [INFO] Definindo rota raiz /
+[2025-04-04 03:31:45] [INFO] Registro de rotas concluído
+[2025-04-04 03:31:45] [INFO] Rotas registradas:
+[2025-04-04 03:31:45] [INFO]   admin.add_link: /admin/links/add {'GET', 'POST', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   admin.add_number: /admin/numbers/add {'GET', 'POST', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   admin.dashboard: /admin/dashboard {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   admin.delete_link: /admin/links/delete/<int:link_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:31:45] [INFO]   admin.delete_number: /admin/numbers/delete/<int:number_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:31:45] [INFO]   admin.edit_link: /admin/links/edit/<int:link_id> {'GET', 'POST', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   admin.edit_number: /admin/numbers/edit/<int:number_id> {'GET', 'POST', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   admin.link_stats: /admin/links/stats/<int:link_id> {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   admin.manage_links: /admin/links {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   admin.manage_numbers: /admin/numbers {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   auth.login: /auth/login {'GET', 'POST', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   auth.logout: /auth/logout {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   auth.register: /auth/register {'GET', 'POST', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   index: / {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   redirect.redirect_to_whatsapp: /<link_name> {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   redirect.redirect_with_prefix: /<prefix>/<link_name> {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO]   static: /static/<path:filename> {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:31:45] [INFO] Inicializando banco de dados...
+[2025-04-04 03:31:47] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:31:47] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 03:31:48] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 03:31:48] [INFO] Iniciando servidor na porta 3000 com debug=True
+[2025-04-04 03:31:48] [WARNING]  * Debugger is active!
+[2025-04-04 03:31:48] [INFO]  * Debugger PIN: 830-599-122
+[2025-04-04 03:31:51] [INFO] Acessando rota raiz /
+[2025-04-04 03:31:51] [INFO] Usuário não autenticado, redirecionando para login
+[2025-04-04 03:31:51] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:51] "[32mGET / HTTP/1.1[0m" 302 -
+[2025-04-04 03:31:51] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:51] "[35m[1mGET /auth/login HTTP/1.1[0m" 500 -
+[2025-04-04 03:31:52] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:52] "GET /auth/login?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+[2025-04-04 03:31:52] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:52] "GET /auth/login?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+[2025-04-04 03:31:52] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:52] "GET /auth/login?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1" 200 -
+[2025-04-04 03:31:52] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:52] "GET /auth/login?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:31:52] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:52] "GET /auth/login?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:31:53] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:53] "[35m[1mGET /auth/login HTTP/1.1[0m" 500 -
+[2025-04-04 03:31:53] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:53] "GET /auth/login?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+[2025-04-04 03:31:53] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:53] "GET /auth/login?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+[2025-04-04 03:31:53] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:53] "GET /auth/login?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:31:53] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:53] "GET /auth/login?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1" 200 -
+[2025-04-04 03:31:53] [INFO] 127.0.0.1 - - [04/Apr/2025 03:31:53] "GET /auth/login?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:35:13] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 03:35:13] [INFO] Iniciando registro de rotas
+[2025-04-04 03:35:13] [INFO] Registrando blueprint auth_bp com prefixo /auth
+[2025-04-04 03:35:13] [INFO] Registrando blueprint admin_bp com prefixo /admin
+[2025-04-04 03:35:13] [INFO] Registrando blueprint redirect_bp (sem prefixo)
+[2025-04-04 03:35:13] [INFO] Definindo rota raiz /
+[2025-04-04 03:35:13] [INFO] Registro de rotas concluído
+[2025-04-04 03:35:13] [INFO] Rotas registradas:
+[2025-04-04 03:35:13] [INFO]   admin.add_link: /admin/links/add {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   admin.add_number: /admin/numbers/add {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   admin.dashboard: /admin/dashboard {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   admin.delete_link: /admin/links/delete/<int:link_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   admin.delete_number: /admin/numbers/delete/<int:number_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   admin.edit_link: /admin/links/edit/<int:link_id> {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   admin.edit_number: /admin/numbers/edit/<int:number_id> {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   admin.link_stats: /admin/links/stats/<int:link_id> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   admin.manage_links: /admin/links {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   admin.manage_numbers: /admin/numbers {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   auth.login: /auth/login {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   auth.logout: /auth/logout {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   auth.register: /auth/register {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   index: / {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   redirect.redirect_to_whatsapp: /<link_name> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   redirect.redirect_with_prefix: /<prefix>/<link_name> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO]   static: /static/<path:filename> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:35:13] [INFO] Inicializando banco de dados...
+[2025-04-04 03:35:14] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:35:15] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 03:35:15] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 03:35:15] [INFO] Iniciando servidor na porta 3000 com debug=True
+[2025-04-04 03:35:15] [WARNING]  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+[2025-04-04 03:35:15] [INFO]  * Running on http://192.168.100.203:3000/ (Press CTRL+C to quit)
+[2025-04-04 03:35:15] [INFO]  * Restarting with stat
+[2025-04-04 03:35:15] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 03:35:15] [INFO] Iniciando registro de rotas
+[2025-04-04 03:35:15] [INFO] Registrando blueprint auth_bp com prefixo /auth
+[2025-04-04 03:35:15] [INFO] Registrando blueprint admin_bp com prefixo /admin
+[2025-04-04 03:35:15] [INFO] Registrando blueprint redirect_bp (sem prefixo)
+[2025-04-04 03:35:15] [INFO] Definindo rota raiz /
+[2025-04-04 03:35:15] [INFO] Registro de rotas concluído
+[2025-04-04 03:35:15] [INFO] Rotas registradas:
+[2025-04-04 03:35:15] [INFO]   admin.add_link: /admin/links/add {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   admin.add_number: /admin/numbers/add {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   admin.dashboard: /admin/dashboard {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   admin.delete_link: /admin/links/delete/<int:link_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   admin.delete_number: /admin/numbers/delete/<int:number_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   admin.edit_link: /admin/links/edit/<int:link_id> {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   admin.edit_number: /admin/numbers/edit/<int:number_id> {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   admin.link_stats: /admin/links/stats/<int:link_id> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   admin.manage_links: /admin/links {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   admin.manage_numbers: /admin/numbers {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   auth.login: /auth/login {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   auth.logout: /auth/logout {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   auth.register: /auth/register {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   index: / {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   redirect.redirect_to_whatsapp: /<link_name> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   redirect.redirect_with_prefix: /<prefix>/<link_name> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO]   static: /static/<path:filename> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:35:15] [INFO] Inicializando banco de dados...
+[2025-04-04 03:35:17] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:35:17] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 03:35:18] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 03:35:18] [INFO] Iniciando servidor na porta 3000 com debug=True
+[2025-04-04 03:35:18] [WARNING]  * Debugger is active!
+[2025-04-04 03:35:18] [INFO]  * Debugger PIN: 830-599-122
+[2025-04-04 03:35:24] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:24] "GET /auth/login HTTP/1.1" 200 -
+[2025-04-04 03:35:24] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:24] "GET /static/css/styles.css HTTP/1.1" 200 -
+[2025-04-04 03:35:25] [WARNING] Tentativa de acessar rota reservada como link: favicon.ico
+[2025-04-04 03:35:25] [WARNING] Erro 404: /favicon.ico - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:35:25] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:25] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 500 -
+[2025-04-04 03:35:27] [INFO] Acessando rota raiz /
+[2025-04-04 03:35:27] [INFO] Usuário não autenticado, redirecionando para login
+[2025-04-04 03:35:27] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:27] "[32mGET / HTTP/1.1[0m" 302 -
+[2025-04-04 03:35:27] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:27] "GET /auth/login HTTP/1.1" 200 -
+[2025-04-04 03:35:27] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:27] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+[2025-04-04 03:35:27] [WARNING] Tentativa de acessar rota reservada como link: favicon.ico
+[2025-04-04 03:35:27] [WARNING] Erro 404: /favicon.ico - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:35:27] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:27] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 500 -
+[2025-04-04 03:35:28] [INFO] Acessando rota raiz /
+[2025-04-04 03:35:28] [INFO] Usuário não autenticado, redirecionando para login
+[2025-04-04 03:35:28] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:28] "[32mGET / HTTP/1.1[0m" 302 -
+[2025-04-04 03:35:28] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:28] "GET /auth/login HTTP/1.1" 200 -
+[2025-04-04 03:35:28] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:28] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+[2025-04-04 03:35:28] [WARNING] Tentativa de acessar rota reservada como link: favicon.ico
+[2025-04-04 03:35:28] [WARNING] Erro 404: /favicon.ico - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:35:28] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:28] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 500 -
+[2025-04-04 03:35:32] [INFO] Tentando autenticar usuário: felipe
+[2025-04-04 03:35:34] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:35:35] [INFO] Verificando senha para usuário: felipe
+[2025-04-04 03:35:35] [INFO] Login bem-sucedido para o usuário: felipe
+[2025-04-04 03:35:35] [INFO] Usuário logado com sucesso: felipe
+[2025-04-04 03:35:35] [INFO] Redirecionando para: /admin/dashboard
+[2025-04-04 03:35:35] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:35] "[32mPOST /auth/login HTTP/1.1[0m" 302 -
+[2025-04-04 03:35:36] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:35:38] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:35:39] [ERROR] Erro ao executar consulta: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:35:39] [ERROR] Erro ao obter estatísticas do dashboard: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:35:40] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:35:41] [ERROR] Erro ao buscar links do usuário: type object 'CustomLink' has no attribute 'get_all_by_user'
+[2025-04-04 03:35:41] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:41] "[35m[1mGET /admin/dashboard HTTP/1.1[0m" 500 -
+[2025-04-04 03:35:41] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:41] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+[2025-04-04 03:35:41] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:41] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+[2025-04-04 03:35:41] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:41] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:35:41] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:41] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1" 200 -
+[2025-04-04 03:35:41] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:41] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:35:54] [WARNING] Tentativa de acessar rota reservada como link: dashboard
+[2025-04-04 03:35:54] [WARNING] Erro 404: /dashboard - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:35:54] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:54] "[35m[1mGET /dashboard HTTP/1.1[0m" 500 -
+[2025-04-04 03:35:54] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:54] "GET /dashboard?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+[2025-04-04 03:35:54] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:54] "GET /dashboard?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+[2025-04-04 03:35:54] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:54] "GET /dashboard?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1" 200 -
+[2025-04-04 03:35:54] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:54] "GET /dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:35:54] [INFO] 127.0.0.1 - - [04/Apr/2025 03:35:54] "GET /dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:36:36] [INFO]  * Detected change in '/Users/oliveira/Downloads/Back redirect do pedro/app.py', reloading
+[2025-04-04 03:36:36] [INFO]  * Restarting with stat
+[2025-04-04 03:36:36] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 03:36:36] [INFO] Iniciando registro de rotas
+[2025-04-04 03:36:36] [INFO] Registrando blueprint auth_bp com prefixo /auth
+[2025-04-04 03:36:36] [INFO] Registrando blueprint admin_bp com prefixo /admin
+[2025-04-04 03:36:36] [INFO] Registrando blueprint redirect_bp (sem prefixo)
+[2025-04-04 03:36:36] [INFO] Definindo rota raiz /
+[2025-04-04 03:36:36] [INFO] Registro de rotas concluído
+[2025-04-04 03:36:36] [INFO] Rotas registradas:
+[2025-04-04 03:36:36] [INFO]   admin.add_link: /admin/links/add {'GET', 'HEAD', 'POST', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   admin.add_number: /admin/numbers/add {'GET', 'HEAD', 'POST', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   admin.dashboard: /admin/dashboard {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   admin.delete_link: /admin/links/delete/<int:link_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   admin.delete_number: /admin/numbers/delete/<int:number_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   admin.edit_link: /admin/links/edit/<int:link_id> {'GET', 'HEAD', 'POST', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   admin.edit_number: /admin/numbers/edit/<int:number_id> {'GET', 'HEAD', 'POST', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   admin.link_stats: /admin/links/stats/<int:link_id> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   admin.manage_links: /admin/links {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   admin.manage_numbers: /admin/numbers {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   auth.login: /auth/login {'GET', 'HEAD', 'POST', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   auth.logout: /auth/logout {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   auth.register: /auth/register {'GET', 'HEAD', 'POST', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   index: / {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   redirect.redirect_to_whatsapp: /<link_name> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   redirect.redirect_with_prefix: /<prefix>/<link_name> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO]   static: /static/<path:filename> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:36:36] [INFO] Inicializando banco de dados...
+[2025-04-04 03:36:38] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:36:39] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 03:36:39] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 03:36:39] [INFO] Iniciando servidor na porta 3000 com debug=True
+[2025-04-04 03:36:39] [WARNING]  * Debugger is active!
+[2025-04-04 03:36:39] [INFO]  * Debugger PIN: 830-599-122
+[2025-04-04 03:36:45] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:36:46] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:36:47] [ERROR] Erro ao executar consulta: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:36:47] [ERROR] Erro ao obter estatísticas do dashboard: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:36:49] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:36:49] [ERROR] Erro ao buscar links do usuário: type object 'CustomLink' has no attribute 'get_all_by_user'
+[2025-04-04 03:36:49] [INFO] 127.0.0.1 - - [04/Apr/2025 03:36:49] "[35m[1mGET /admin/dashboard HTTP/1.1[0m" 500 -
+[2025-04-04 03:36:49] [INFO] 127.0.0.1 - - [04/Apr/2025 03:36:49] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+[2025-04-04 03:36:49] [INFO] 127.0.0.1 - - [04/Apr/2025 03:36:49] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+[2025-04-04 03:36:49] [INFO] 127.0.0.1 - - [04/Apr/2025 03:36:49] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:36:49] [INFO] 127.0.0.1 - - [04/Apr/2025 03:36:49] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1" 200 -
+[2025-04-04 03:36:50] [INFO] 127.0.0.1 - - [04/Apr/2025 03:36:50] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:38:53] [INFO]  * Detected change in '/Users/oliveira/Downloads/Back redirect do pedro/app.py', reloading
+[2025-04-04 03:38:53] [INFO]  * Restarting with stat
+[2025-04-04 03:38:53] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 03:38:53] [INFO] Iniciando registro de rotas
+[2025-04-04 03:38:53] [INFO] Registrando blueprint auth_bp com prefixo /auth
+[2025-04-04 03:38:53] [INFO] Registrando blueprint admin_bp com prefixo /admin
+[2025-04-04 03:38:53] [INFO] Registrando blueprint redirect_bp (sem prefixo)
+[2025-04-04 03:38:53] [INFO] Definindo rota raiz /
+[2025-04-04 03:38:53] [INFO] Registro de rotas concluído
+[2025-04-04 03:38:53] [INFO] Rotas registradas:
+[2025-04-04 03:38:53] [INFO]   admin.add_link: /admin/links/add {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   admin.add_number: /admin/numbers/add {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   admin.dashboard: /admin/dashboard {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   admin.delete_link: /admin/links/delete/<int:link_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   admin.delete_number: /admin/numbers/delete/<int:number_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   admin.edit_link: /admin/links/edit/<int:link_id> {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   admin.edit_number: /admin/numbers/edit/<int:number_id> {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   admin.link_stats: /admin/links/stats/<int:link_id> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   admin.manage_links: /admin/links {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   admin.manage_numbers: /admin/numbers {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   auth.login: /auth/login {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   auth.logout: /auth/logout {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   auth.register: /auth/register {'POST', 'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   index: / {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   redirect.redirect_to_whatsapp: /<link_name> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   redirect.redirect_with_prefix: /<prefix>/<link_name> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO]   static: /static/<path:filename> {'GET', 'HEAD', 'OPTIONS'}
+[2025-04-04 03:38:53] [INFO] Inicializando banco de dados...
+[2025-04-04 03:38:55] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:38:55] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 03:38:56] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 03:38:56] [INFO] Iniciando servidor na porta 3000 com debug=True
+[2025-04-04 03:38:56] [WARNING]  * Debugger is active!
+[2025-04-04 03:38:56] [INFO]  * Debugger PIN: 830-599-122
+[2025-04-04 03:39:32] [INFO]  * Detected change in '/Users/oliveira/Downloads/Back redirect do pedro/app.py', reloading
+[2025-04-04 03:39:32] [INFO]  * Restarting with stat
+[2025-04-04 03:39:32] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 03:39:32] [INFO] Iniciando registro de rotas
+[2025-04-04 03:39:32] [INFO] Registrando blueprint auth_bp com prefixo /auth
+[2025-04-04 03:39:32] [INFO] Registrando blueprint admin_bp com prefixo /admin
+[2025-04-04 03:39:32] [INFO] Registrando blueprint redirect_bp (sem prefixo)
+[2025-04-04 03:39:32] [INFO] Definindo rota raiz /
+[2025-04-04 03:39:32] [INFO] Registro de rotas concluído
+[2025-04-04 03:39:32] [INFO] Rotas registradas:
+[2025-04-04 03:39:32] [INFO]   admin.add_link: /admin/links/add {'POST', 'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   admin.add_number: /admin/numbers/add {'POST', 'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   admin.dashboard: /admin/dashboard {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   admin.delete_link: /admin/links/delete/<int:link_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:39:32] [INFO]   admin.delete_number: /admin/numbers/delete/<int:number_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:39:32] [INFO]   admin.edit_link: /admin/links/edit/<int:link_id> {'POST', 'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   admin.edit_number: /admin/numbers/edit/<int:number_id> {'POST', 'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   admin.link_stats: /admin/links/stats/<int:link_id> {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   admin.manage_links: /admin/links {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   admin.manage_numbers: /admin/numbers {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   auth.login: /auth/login {'POST', 'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   auth.logout: /auth/logout {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   auth.register: /auth/register {'POST', 'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   index: / {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   redirect.redirect_to_whatsapp: /<link_name> {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   redirect.redirect_with_prefix: /<prefix>/<link_name> {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO]   static: /static/<path:filename> {'GET', 'OPTIONS', 'HEAD'}
+[2025-04-04 03:39:32] [INFO] Inicializando banco de dados...
+[2025-04-04 03:39:34] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:39:34] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 03:39:35] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 03:39:35] [INFO] Iniciando servidor na porta 3000 com debug=True
+[2025-04-04 03:39:35] [WARNING]  * Debugger is active!
+[2025-04-04 03:39:35] [INFO]  * Debugger PIN: 830-599-122
+[2025-04-04 03:40:11] [INFO]  * Detected change in '/Users/oliveira/Downloads/Back redirect do pedro/app.py', reloading
+[2025-04-04 03:40:11] [INFO]  * Restarting with stat
+[2025-04-04 03:40:11] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 03:40:11] [INFO] Iniciando registro de rotas
+[2025-04-04 03:40:11] [INFO] Registrando blueprint auth_bp com prefixo /auth
+[2025-04-04 03:40:11] [INFO] Registrando blueprint admin_bp com prefixo /admin
+[2025-04-04 03:40:11] [INFO] Registrando blueprint redirect_bp (sem prefixo)
+[2025-04-04 03:40:11] [INFO] Definindo rota raiz /
+[2025-04-04 03:40:11] [INFO] Registro de rotas concluído
+[2025-04-04 03:40:11] [INFO] Rotas registradas:
+[2025-04-04 03:40:11] [INFO]   admin.add_link: /admin/links/add {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   admin.add_number: /admin/numbers/add {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   admin.dashboard: /admin/dashboard {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   admin.delete_link: /admin/links/delete/<int:link_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   admin.delete_number: /admin/numbers/delete/<int:number_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   admin.edit_link: /admin/links/edit/<int:link_id> {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   admin.edit_number: /admin/numbers/edit/<int:number_id> {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   admin.link_stats: /admin/links/stats/<int:link_id> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   admin.manage_links: /admin/links {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   admin.manage_numbers: /admin/numbers {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   auth.login: /auth/login {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   auth.logout: /auth/logout {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   auth.register: /auth/register {'HEAD', 'GET', 'POST', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   index: / {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   redirect.redirect_to_whatsapp: /<link_name> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   redirect.redirect_with_prefix: /<prefix>/<link_name> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO]   static: /static/<path:filename> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:11] [INFO] Inicializando banco de dados...
+[2025-04-04 03:40:13] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:40:13] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 03:40:14] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 03:40:14] [INFO] Iniciando servidor na porta 3000 com debug=True
+[2025-04-04 03:40:14] [WARNING]  * Debugger is active!
+[2025-04-04 03:40:14] [INFO]  * Debugger PIN: 830-599-122
+[2025-04-04 03:40:25] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 03:40:25] [INFO] Iniciando registro de rotas
+[2025-04-04 03:40:25] [INFO] Registrando blueprint auth_bp com prefixo /auth
+[2025-04-04 03:40:25] [INFO] Registrando blueprint admin_bp com prefixo /admin
+[2025-04-04 03:40:25] [INFO] Registrando blueprint redirect_bp (sem prefixo)
+[2025-04-04 03:40:25] [INFO] Definindo rota raiz /
+[2025-04-04 03:40:25] [INFO] Registro de rotas concluído
+[2025-04-04 03:40:25] [INFO] Rotas registradas:
+[2025-04-04 03:40:25] [INFO]   admin.add_link: /admin/links/add {'OPTIONS', 'POST', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   admin.add_number: /admin/numbers/add {'OPTIONS', 'POST', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   admin.dashboard: /admin/dashboard {'OPTIONS', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   admin.delete_link: /admin/links/delete/<int:link_id> {'OPTIONS', 'POST'}
+[2025-04-04 03:40:25] [INFO]   admin.delete_number: /admin/numbers/delete/<int:number_id> {'OPTIONS', 'POST'}
+[2025-04-04 03:40:25] [INFO]   admin.edit_link: /admin/links/edit/<int:link_id> {'OPTIONS', 'POST', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   admin.edit_number: /admin/numbers/edit/<int:number_id> {'OPTIONS', 'POST', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   admin.link_stats: /admin/links/stats/<int:link_id> {'OPTIONS', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   admin.manage_links: /admin/links {'OPTIONS', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   admin.manage_numbers: /admin/numbers {'OPTIONS', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   auth.login: /auth/login {'OPTIONS', 'POST', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   auth.logout: /auth/logout {'OPTIONS', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   auth.register: /auth/register {'OPTIONS', 'POST', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   index: / {'OPTIONS', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   redirect.redirect_to_whatsapp: /<link_name> {'OPTIONS', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   redirect.redirect_with_prefix: /<prefix>/<link_name> {'OPTIONS', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO]   static: /static/<path:filename> {'OPTIONS', 'HEAD', 'GET'}
+[2025-04-04 03:40:25] [INFO] Inicializando banco de dados...
+[2025-04-04 03:40:27] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:40:27] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 03:40:28] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 03:40:28] [INFO] Iniciando servidor na porta 3000 com debug=True
+[2025-04-04 03:40:30] [INFO]  * Detected change in '/Users/oliveira/Downloads/Back redirect do pedro/app.py', reloading
+[2025-04-04 03:40:30] [INFO]  * Restarting with stat
+[2025-04-04 03:40:30] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 03:40:30] [INFO] Iniciando registro de rotas
+[2025-04-04 03:40:30] [INFO] Registrando blueprint auth_bp com prefixo /auth
+[2025-04-04 03:40:30] [INFO] Registrando blueprint admin_bp com prefixo /admin
+[2025-04-04 03:40:30] [INFO] Registrando blueprint redirect_bp (sem prefixo)
+[2025-04-04 03:40:30] [INFO] Definindo rota raiz /
+[2025-04-04 03:40:30] [INFO] Registro de rotas concluído
+[2025-04-04 03:40:30] [INFO] Rotas registradas:
+[2025-04-04 03:40:30] [INFO]   admin.add_link: /admin/links/add {'HEAD', 'GET', 'OPTIONS', 'POST'}
+[2025-04-04 03:40:30] [INFO]   admin.add_number: /admin/numbers/add {'HEAD', 'GET', 'OPTIONS', 'POST'}
+[2025-04-04 03:40:30] [INFO]   admin.dashboard: /admin/dashboard {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:30] [INFO]   admin.delete_link: /admin/links/delete/<int:link_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:40:30] [INFO]   admin.delete_number: /admin/numbers/delete/<int:number_id> {'POST', 'OPTIONS'}
+[2025-04-04 03:40:30] [INFO]   admin.edit_link: /admin/links/edit/<int:link_id> {'HEAD', 'GET', 'OPTIONS', 'POST'}
+[2025-04-04 03:40:30] [INFO]   admin.edit_number: /admin/numbers/edit/<int:number_id> {'HEAD', 'GET', 'OPTIONS', 'POST'}
+[2025-04-04 03:40:30] [INFO]   admin.link_stats: /admin/links/stats/<int:link_id> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:30] [INFO]   admin.manage_links: /admin/links {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:30] [INFO]   admin.manage_numbers: /admin/numbers {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:30] [INFO]   auth.login: /auth/login {'HEAD', 'GET', 'OPTIONS', 'POST'}
+[2025-04-04 03:40:30] [INFO]   auth.logout: /auth/logout {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:30] [INFO]   auth.register: /auth/register {'HEAD', 'GET', 'OPTIONS', 'POST'}
+[2025-04-04 03:40:30] [INFO]   index: / {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:30] [INFO]   redirect.redirect_to_whatsapp: /<link_name> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:30] [INFO]   redirect.redirect_with_prefix: /<prefix>/<link_name> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:30] [INFO]   static: /static/<path:filename> {'HEAD', 'GET', 'OPTIONS'}
+[2025-04-04 03:40:30] [INFO] Inicializando banco de dados...
+[2025-04-04 03:40:32] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:40:32] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 03:40:32] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 03:40:32] [INFO] Iniciando servidor na porta 3000 com debug=True
+[2025-04-04 03:40:32] [WARNING]  * Debugger is active!
+[2025-04-04 03:40:32] [INFO]  * Debugger PIN: 830-599-122
+[2025-04-04 03:40:42] [INFO] 127.0.0.1 - - [04/Apr/2025 03:40:42] "GET /auth/login HTTP/1.1" 200 -
+[2025-04-04 03:40:42] [WARNING] Tentativa de acessar rota reservada como link: favicon.ico
+[2025-04-04 03:40:42] [WARNING] Erro 404: /favicon.ico - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:40:42] [INFO] 127.0.0.1 - - [04/Apr/2025 03:40:42] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 500 -
+[2025-04-04 03:40:45] [INFO] Tentando autenticar usuário: felipe
+[2025-04-04 03:40:47] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:40:47] [INFO] Verificando senha para usuário: felipe
+[2025-04-04 03:40:48] [INFO] Login bem-sucedido para o usuário: felipe
+[2025-04-04 03:40:48] [INFO] Usuário logado com sucesso: felipe
+[2025-04-04 03:40:48] [INFO] Redirecionando para: /admin/dashboard
+[2025-04-04 03:40:48] [INFO] 127.0.0.1 - - [04/Apr/2025 03:40:48] "[32mPOST /auth/login HTTP/1.1[0m" 302 -
+[2025-04-04 03:40:49] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:40:51] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:40:52] [ERROR] Erro ao executar consulta: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:40:52] [ERROR] Erro ao obter estatísticas do dashboard: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:40:53] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:40:54] [ERROR] Erro ao buscar links do usuário: type object 'CustomLink' has no attribute 'get_all_by_user'
+[2025-04-04 03:40:54] [INFO] 127.0.0.1 - - [04/Apr/2025 03:40:54] "[35m[1mGET /admin/dashboard HTTP/1.1[0m" 500 -
+[2025-04-04 03:40:54] [INFO] 127.0.0.1 - - [04/Apr/2025 03:40:54] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+[2025-04-04 03:40:54] [INFO] 127.0.0.1 - - [04/Apr/2025 03:40:54] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+[2025-04-04 03:40:54] [INFO] 127.0.0.1 - - [04/Apr/2025 03:40:54] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:40:54] [INFO] 127.0.0.1 - - [04/Apr/2025 03:40:54] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1" 200 -
+[2025-04-04 03:41:14] [WARNING] Tentativa de acessar rota reservada como link: admin
+[2025-04-04 03:41:14] [WARNING] Erro 404: /admin - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:41:14] [INFO] 127.0.0.1 - - [04/Apr/2025 03:41:14] "[35m[1mGET /admin HTTP/1.1[0m" 500 -
+[2025-04-04 03:41:14] [INFO] 127.0.0.1 - - [04/Apr/2025 03:41:14] "GET /admin?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+[2025-04-04 03:41:14] [INFO] 127.0.0.1 - - [04/Apr/2025 03:41:14] "GET /admin?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+[2025-04-04 03:41:14] [INFO] 127.0.0.1 - - [04/Apr/2025 03:41:14] "GET /admin?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:41:14] [INFO] 127.0.0.1 - - [04/Apr/2025 03:41:14] "GET /admin?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1" 200 -
+[2025-04-04 03:41:14] [INFO] 127.0.0.1 - - [04/Apr/2025 03:41:14] "GET /admin?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:44:28] [INFO] 127.0.0.1 - - [04/Apr/2025 03:44:28] "GET /auth/login HTTP/1.1" 200 -
+[2025-04-04 03:44:29] [WARNING] Tentativa de acessar rota reservada como link: favicon.ico
+[2025-04-04 03:44:29] [WARNING] Erro 404: /favicon.ico - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:44:29] [INFO] 127.0.0.1 - - [04/Apr/2025 03:44:29] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 500 -
+[2025-04-04 03:44:32] [INFO] Tentando autenticar usuário: felipe
+[2025-04-04 03:44:34] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:44:34] [INFO] Verificando senha para usuário: felipe
+[2025-04-04 03:44:34] [INFO] Login bem-sucedido para o usuário: felipe
+[2025-04-04 03:44:34] [INFO] Usuário logado com sucesso: felipe
+[2025-04-04 03:44:34] [INFO] Redirecionando para: /admin/dashboard
+[2025-04-04 03:44:34] [INFO] 127.0.0.1 - - [04/Apr/2025 03:44:34] "[32mPOST /auth/login HTTP/1.1[0m" 302 -
+[2025-04-04 03:44:36] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:44:38] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:44:38] [ERROR] Erro ao executar consulta: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:44:38] [ERROR] Erro ao obter estatísticas do dashboard: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:44:40] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:44:41] [ERROR] Erro ao buscar links do usuário: type object 'CustomLink' has no attribute 'get_all_by_user'
+[2025-04-04 03:44:41] [INFO] 127.0.0.1 - - [04/Apr/2025 03:44:41] "[35m[1mGET /admin/dashboard HTTP/1.1[0m" 500 -
+[2025-04-04 03:44:41] [INFO] 127.0.0.1 - - [04/Apr/2025 03:44:41] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+[2025-04-04 03:44:41] [INFO] 127.0.0.1 - - [04/Apr/2025 03:44:41] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+[2025-04-04 03:44:41] [INFO] 127.0.0.1 - - [04/Apr/2025 03:44:41] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:44:41] [INFO] 127.0.0.1 - - [04/Apr/2025 03:44:41] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1" 200 -
+[2025-04-04 03:46:19] [INFO] Adaptador de banco de dados inicializado com a aplicação Flask
+[2025-04-04 03:46:19] [INFO] Iniciando registro de rotas
+[2025-04-04 03:46:19] [INFO] Registrando blueprint auth_bp com prefixo /auth
+[2025-04-04 03:46:19] [INFO] Registrando blueprint admin_bp com prefixo /admin
+[2025-04-04 03:46:19] [INFO] Registrando blueprint redirect_bp (sem prefixo)
+[2025-04-04 03:46:19] [INFO] Definindo rota raiz /
+[2025-04-04 03:46:19] [INFO] Registro de rotas concluído
+[2025-04-04 03:46:19] [INFO] Rotas registradas:
+[2025-04-04 03:46:19] [INFO]   admin.add_link: /admin/links/add {'GET', 'HEAD', 'OPTIONS', 'POST'}
+[2025-04-04 03:46:19] [INFO]   admin.add_number: /admin/numbers/add {'GET', 'HEAD', 'OPTIONS', 'POST'}
+[2025-04-04 03:46:19] [INFO]   admin.dashboard: /admin/dashboard {'HEAD', 'OPTIONS', 'GET'}
+[2025-04-04 03:46:19] [INFO]   admin.delete_link: /admin/links/delete/<int:link_id> {'OPTIONS', 'POST'}
+[2025-04-04 03:46:19] [INFO]   admin.delete_number: /admin/numbers/delete/<int:number_id> {'OPTIONS', 'POST'}
+[2025-04-04 03:46:19] [INFO]   admin.edit_link: /admin/links/edit/<int:link_id> {'GET', 'HEAD', 'OPTIONS', 'POST'}
+[2025-04-04 03:46:19] [INFO]   admin.edit_number: /admin/numbers/edit/<int:number_id> {'GET', 'HEAD', 'OPTIONS', 'POST'}
+[2025-04-04 03:46:19] [INFO]   admin.link_stats: /admin/links/stats/<int:link_id> {'HEAD', 'OPTIONS', 'GET'}
+[2025-04-04 03:46:19] [INFO]   admin.manage_links: /admin/links {'HEAD', 'OPTIONS', 'GET'}
+[2025-04-04 03:46:19] [INFO]   admin.manage_numbers: /admin/numbers {'HEAD', 'OPTIONS', 'GET'}
+[2025-04-04 03:46:19] [INFO]   auth.login: /auth/login {'GET', 'HEAD', 'OPTIONS', 'POST'}
+[2025-04-04 03:46:19] [INFO]   auth.logout: /auth/logout {'HEAD', 'OPTIONS', 'GET'}
+[2025-04-04 03:46:19] [INFO]   auth.register: /auth/register {'GET', 'HEAD', 'OPTIONS', 'POST'}
+[2025-04-04 03:46:19] [INFO]   index: / {'HEAD', 'OPTIONS', 'GET'}
+[2025-04-04 03:46:19] [INFO]   redirect.redirect_to_whatsapp: /<link_name> {'HEAD', 'OPTIONS', 'GET'}
+[2025-04-04 03:46:19] [INFO]   redirect.redirect_with_prefix: /<prefix>/<link_name> {'HEAD', 'OPTIONS', 'GET'}
+[2025-04-04 03:46:19] [INFO]   static: /static/<path:filename> {'HEAD', 'OPTIONS', 'GET'}
+[2025-04-04 03:46:19] [INFO] Inicializando banco de dados...
+[2025-04-04 03:46:21] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:46:22] [INFO] Tabelas já existem, verificando usuários...
+[2025-04-04 03:46:22] [INFO] Banco de dados inicializado com sucesso!
+[2025-04-04 03:46:53] [INFO] Acessando rota raiz /
+[2025-04-04 03:46:53] [INFO] Usuário não autenticado, redirecionando para login
+[2025-04-04 03:46:53] [INFO] 127.0.0.1 - - [04/Apr/2025 03:46:53] "[32mHEAD / HTTP/1.1[0m" 302 -
+[2025-04-04 03:46:57] [INFO] 127.0.0.1 - - [04/Apr/2025 03:46:57] "HEAD /auth/login HTTP/1.1" 200 -
+[2025-04-04 03:47:00] [INFO] 127.0.0.1 - - [04/Apr/2025 03:47:00] "[32mHEAD /admin/dashboard HTTP/1.1[0m" 302 -
+[2025-04-04 03:47:03] [INFO] 127.0.0.1 - - [04/Apr/2025 03:47:03] "[32mHEAD /admin/numbers HTTP/1.1[0m" 302 -
+[2025-04-04 03:47:06] [INFO] 127.0.0.1 - - [04/Apr/2025 03:47:06] "[32mHEAD /admin/links HTTP/1.1[0m" 302 -
+[2025-04-04 03:47:09] [INFO] 127.0.0.1 - - [04/Apr/2025 03:47:09] "[32mHEAD /auth/logout HTTP/1.1[0m" 302 -
+[2025-04-04 03:47:12] [INFO] Tentativa de redirecionamento para link: backup_db_secret | IP: 127.0.0.1
+[2025-04-04 03:47:14] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:47:14] [WARNING] Link não encontrado com os parâmetros específicos: link_name=backup_db_secret, prefix=None, user_id=None
+[2025-04-04 03:47:14] [WARNING] Link não encontrado mesmo no fallback: backup_db_secret
+[2025-04-04 03:47:14] [WARNING] Falha no redirecionamento para backup_db_secret: Link não encontrado ou inativo.
+[2025-04-04 03:47:14] [INFO] 127.0.0.1 - - [04/Apr/2025 03:47:14] "HEAD /backup_db_secret HTTP/1.1" 200 -
+[2025-04-04 03:47:18] [INFO] Tentativa de redirecionamento para link: admin_usuarios | IP: 127.0.0.1
+[2025-04-04 03:47:19] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:47:20] [WARNING] Link não encontrado com os parâmetros específicos: link_name=admin_usuarios, prefix=None, user_id=None
+[2025-04-04 03:47:20] [WARNING] Link não encontrado mesmo no fallback: admin_usuarios
+[2025-04-04 03:47:20] [WARNING] Falha no redirecionamento para admin_usuarios: Link não encontrado ou inativo.
+[2025-04-04 03:47:20] [INFO] 127.0.0.1 - - [04/Apr/2025 03:47:20] "HEAD /admin_usuarios HTTP/1.1" 200 -
+[2025-04-04 03:47:22] [WARNING] Erro 404: /api/stats/summary - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:47:22] [INFO] 127.0.0.1 - - [04/Apr/2025 03:47:22] "[33mHEAD /api/stats/summary HTTP/1.1[0m" 404 -
+[2025-04-04 03:47:25] [INFO] Tentativa de redirecionamento para link: test | IP: 127.0.0.1
+[2025-04-04 03:47:27] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:47:27] [WARNING] Link não encontrado com os parâmetros específicos: link_name=test, prefix=None, user_id=None
+[2025-04-04 03:47:28] [WARNING] Link não encontrado mesmo no fallback: test
+[2025-04-04 03:47:28] [WARNING] Falha no redirecionamento para test: Link não encontrado ou inativo.
+[2025-04-04 03:47:28] [INFO] 127.0.0.1 - - [04/Apr/2025 03:47:28] "HEAD /test HTTP/1.1" 200 -
+[2025-04-04 03:47:45] [INFO] Tentativa de redirecionamento para link com prefixo: api/links | IP: 127.0.0.1
+[2025-04-04 03:47:47] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:47:47] [WARNING] Link não encontrado com os parâmetros específicos: link_name=links, prefix=None, user_id=None
+[2025-04-04 03:47:48] [WARNING] Link não encontrado mesmo no fallback: links
+[2025-04-04 03:47:48] [WARNING] Falha no redirecionamento para api/links: Link não encontrado ou inativo.
+[2025-04-04 03:47:48] [INFO] 127.0.0.1 - - [04/Apr/2025 03:47:48] "HEAD /api/links HTTP/1.1" 200 -
+[2025-04-04 03:47:51] [INFO] Tentativa de redirecionamento para link com prefixo: api/numbers | IP: 127.0.0.1
+[2025-04-04 03:47:52] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:47:53] [WARNING] Link não encontrado com os parâmetros específicos: link_name=numbers, prefix=None, user_id=None
+[2025-04-04 03:47:53] [WARNING] Link não encontrado mesmo no fallback: numbers
+[2025-04-04 03:47:53] [WARNING] Falha no redirecionamento para api/numbers: Link não encontrado ou inativo.
+[2025-04-04 03:47:53] [INFO] 127.0.0.1 - - [04/Apr/2025 03:47:53] "HEAD /api/numbers HTTP/1.1" 200 -
+[2025-04-04 03:47:56] [WARNING] Erro 404: /api/redirects/recent - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:47:56] [INFO] 127.0.0.1 - - [04/Apr/2025 03:47:56] "[33mHEAD /api/redirects/recent HTTP/1.1[0m" 404 -
+[2025-04-04 03:48:07] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:48:09] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:48:10] [ERROR] Erro ao executar consulta: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:48:10] [ERROR] Erro ao obter estatísticas do dashboard: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:48:11] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:48:12] [ERROR] Erro ao buscar links do usuário: type object 'CustomLink' has no attribute 'get_all_by_user'
+[2025-04-04 03:48:12] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:12] "[35m[1mGET /admin/dashboard HTTP/1.1[0m" 500 -
+[2025-04-04 03:48:12] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:12] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+[2025-04-04 03:48:12] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:12] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+[2025-04-04 03:48:12] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:12] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1" 200 -
+[2025-04-04 03:48:12] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:12] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:48:12] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:12] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:48:15] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:15] "GET /auth/login HTTP/1.1" 200 -
+[2025-04-04 03:48:15] [WARNING] Tentativa de acessar rota reservada como link: favicon.ico
+[2025-04-04 03:48:15] [WARNING] Erro 404: /favicon.ico - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:48:15] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:15] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 500 -
+[2025-04-04 03:48:18] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:18] "GET /auth/login HTTP/1.1" 200 -
+[2025-04-04 03:48:18] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:18] "[36mGET /static/css/styles.css HTTP/1.1[0m" 304 -
+[2025-04-04 03:48:18] [WARNING] Tentativa de acessar rota reservada como link: favicon.ico
+[2025-04-04 03:48:18] [WARNING] Erro 404: /favicon.ico - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:48:18] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:18] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 500 -
+[2025-04-04 03:48:20] [WARNING] Tentativa de acessar rota reservada como link: favicon.ico
+[2025-04-04 03:48:20] [WARNING] Erro 404: /favicon.ico - 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+[2025-04-04 03:48:20] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:20] "[35m[1mGET /favicon.ico HTTP/1.1[0m" 500 -
+[2025-04-04 03:48:22] [INFO] Acessando rota raiz /
+[2025-04-04 03:48:22] [INFO] Usuário autenticado (ID: 2), redirecionando para dashboard
+[2025-04-04 03:48:22] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:22] "[32mGET / HTTP/1.1[0m" 302 -
+[2025-04-04 03:48:23] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:48:25] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:48:26] [ERROR] Erro ao executar consulta: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:48:26] [ERROR] Erro ao obter estatísticas do dashboard: operator does not exist: integer = boolean
+LINE 1: ...FROM whatsapp_numbers WHERE user_id = 2 AND is_active = true
+                                                                 ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+
+[2025-04-04 03:48:28] [INFO] Conectado com sucesso ao PostgreSQL no host: switchyard.proxy.rlwy.net
+[2025-04-04 03:48:28] [ERROR] Erro ao buscar links do usuário: type object 'CustomLink' has no attribute 'get_all_by_user'
+[2025-04-04 03:48:28] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:28] "[35m[1mGET /admin/dashboard HTTP/1.1[0m" 500 -
+[2025-04-04 03:48:28] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:28] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+[2025-04-04 03:48:28] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:28] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+[2025-04-04 03:48:28] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:28] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2025-04-04 03:48:28] [INFO] 127.0.0.1 - - [04/Apr/2025 03:48:28] "GET /admin/dashboard?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1" 200 -
+[2025-04-04 03:48:54] [INFO]  * Detected change in '/Users/oliveira/Downloads/Back redirect do pedro/app/controllers/redirect_controller.py', reloading
+[2025-04-04 03:48:54] [INFO]  * Restarting with stat
+[2025-04-04 03:52:21] [INFO]  * Restarting with stat

@@ -180,7 +180,7 @@
         }
         
         #mapChart {
-            height: 300px;
+            height: 400px;
             width: 100%;
             border-radius: 5px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -254,23 +254,24 @@
                 </div>
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link active" href="{{ url_for('dashboard') }}">
+                        <a class="nav-link active" href="{{ url_for('admin.dashboard') }}">
                             <i class="bi bi-graph-up"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin') }}">
+                        <a class="nav-link" href="{{ url_for('admin.administracao') }}">
                             <i class="bi bi-gear"></i> Administração
                         </a>
                     </li>
                     {% if session.username == 'felipe' %}
+                    <!-- Links para administração -->
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_backup') }}">
+                        <a class="nav-link" href="{{ url_for('admin.admin_backup') }}">
                             <i class="bi bi-database"></i> Backup
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('admin_usuarios') }}">
+                        <a class="nav-link" href="{{ url_for('admin.admin_usuarios') }}">
                             <i class="bi bi-people"></i> Usuários
                         </a>
                     </li>
@@ -281,7 +282,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('logout') }}">
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">
                             <i class="bi bi-box-arrow-right"></i> Sair
                         </a>
                     </li>
@@ -295,21 +296,54 @@
                             <small>Acione nossa equipe no WhatsApp</small>
                         </div>
                     </div>
-                    <a href="https://wa.me/5541987425246" target="_blank" class="btn btn-sm btn-primary">Chamar agora</a>
+                    <a href="https://wa.me/5521971832555" target="_blank" class="btn btn-sm btn-primary">Chamar agora</a>
                 </div>
             </div>
             
             <!-- Main Content -->
-            <div class="col-md-10 main-content">
+            <div class="col-md-10 main-content" id="dashboard-container">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div class="page-header">
+                    <div class="d-flex align-items-center">
                         <img src="{{ url_for('static', filename='img/logos/Subtract-2.png') }}" alt="REDZAP Icon" class="header-logo">
                         <h2>Dashboard</h2>
                     </div>
                     <div>
-                        <span class="badge bg-light text-dark me-2">
+                        <span class="badge bg-secondary me-2">
                             <i class="bi bi-person-circle me-1"></i> {{ session.username }}
                         </span>
+                    </div>
+                </div>
+                
+                <!-- Filtros -->
+                <div class="card mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <i class="bi bi-funnel me-1"></i> Filtros
+                    </div>
+                    <div class="card-body">
+                        <form class="row g-3">
+                            <div class="col-md-3">
+                                <label for="startDate" class="form-label">Data Inicial</label>
+                                <input type="date" class="form-control" id="startDate" name="start_date">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="endDate" class="form-label">Data Final</label>
+                                <input type="date" class="form-control" id="endDate" name="end_date">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="linkSelector" class="form-label">Link</label>
+                                <select class="form-select" id="linkSelector" name="link_id">
+                                    <option value="all" selected>Todos os Links</option>
+                                    {% for link in links %}
+                                    <option value="{{ link.id }}">{{ link.link_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="button" id="filterButton" class="btn btn-primary w-100">
+                                    <i class="bi bi-search me-1"></i> Filtrar
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
                 
@@ -323,29 +357,6 @@
                             <div class="col-md-11">
                                 <h3 class="mb-2">Seja Bem Vindo!</h3>
                                 <p class="mb-0">Crie seus links e acompanhe o crescimento do seu negócio aqui no REDIZAP.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Date Filter -->
-                <div class="date-filter mb-4">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <label class="form-label">Selecione seu link</label>
-                            <select class="form-select" id="linkSelector">
-                                <option value="all">Todos os links</option>
-                                {% for link in links %}
-                                <option value="{{ link.id }}">{{ link.link_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Intervalo de datas</label>
-                            <div class="input-group">
-                                <input type="date" class="form-control" id="startDate">
-                                <span class="input-group-text">-</span>
-                                <input type="date" class="form-control" id="endDate">
                             </div>
                         </div>
                     </div>
@@ -452,38 +463,31 @@
                     </div>
                 </div>
                 
-                <!-- Recent Activity -->
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Atividade Recente</h5>
+               
+
+                <!-- Atividades Recentes -->
+                <div class="card mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <i class="bi bi-activity me-1"></i> Atividades Recentes
                     </div>
                     <div class="card-body">
                         <div class="table-container">
-                            <table class="table table-hover">
+                            <table class="table table-striped table-hover" id="recentRedirectsTable">
                                 <thead>
                                     <tr>
                                         <th>Data/Hora</th>
                                         <th>Link</th>
                                         <th>Número</th>
                                         <th>IP</th>
+                                        <th>Localização</th>
                                     </tr>
                                 </thead>
-                                <tbody id="recentActivity">
-                                    <!-- Recent activity will be loaded here -->
+                                <tbody>
                                     <tr>
-                                        <td colspan="4" class="text-center">
-                                            <div class="spinner-border text-primary" role="status">
-                                                <span class="visually-hidden">Carregando...</span>
-                                            </div>
-                                        </td>
+                                        <td colspan="5" class="text-center">Carregando atividades recentes...</td>
                                     </tr>
                                 </tbody>
                             </table>
-                        </div>
-                        <div class="d-flex justify-content-center mt-3">
-                            <button id="loadMoreActivity" class="btn btn-outline-light">
-                                <i class="bi bi-arrow-down-circle me-1"></i> Carregar mais
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -522,7 +526,7 @@
             setTimeout(() => {
                 // Load initial data
                 loadNumberStats();
-                loadRecentActivity(currentPage); // Passa a página atual
+                loadRecentActivity(currentPage);
                 updateStats();
             }, 300);
             
@@ -532,6 +536,7 @@
                 loadNumberStats();
                 currentPage = 1; // Reset to first page
                 loadRecentActivity(currentPage);
+                updateStats();
                 updateMapMarkers();
             });
             
@@ -551,6 +556,7 @@
                 loadNumberStats();
                 currentPage = 1; // Reset to first page
                 loadRecentActivity(currentPage);
+                updateStats();
                 updateMapMarkers();
             });
             
@@ -578,13 +584,17 @@
                 loadNumberStats();
                 currentPage = 1; // Reset to first page
                 loadRecentActivity(currentPage);
+                updateStats();
                 updateMapMarkers();
             });
             
-            // Botão carregar mais
-            document.getElementById('loadMoreActivity').addEventListener('click', function() {
-                currentPage++; // Increment page
-                loadRecentActivity(currentPage, true); // Append=true
+            // Botão de filtro
+            document.getElementById('filterButton').addEventListener('click', function() {
+                loadNumberStats();
+                currentPage = 1;
+                loadRecentActivity(currentPage);
+                updateStats();
+                updateMapMarkers();
             });
         });
         
@@ -619,24 +629,90 @@
         function initializeMap() {
             // Certifique-se de que o elemento mapChart existe
             const mapElement = document.getElementById('mapChart');
-            if (!mapElement) return;
+            if (!mapElement) {
+                console.error('Elemento mapChart não encontrado!');
+                return;
+            }
             
-            // Initialize map
-            clickMap = L.map('mapChart').setView([-14.235, -51.925], 4);  // Brazil centered
+            // Criar um indicador de carregamento inicial
+            mapElement.innerHTML = `
+                <div style="
+                    display: flex; 
+                    justify-content: center; 
+                    align-items: center; 
+                    height: 100%; 
+                    width: 100%; 
+                    background-color: #1a1a1a; 
+                    color: white;
+                    border-radius: 5px;
+                ">
+                    <span class="spinner-border spinner-border-sm text-primary me-2"></span>
+                    Inicializando mapa...
+                </div>
+            `;
             
-            // Add tile layer (use a dark theme)
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-                subdomains: 'abcd',
-                maxZoom: 19
-            }).addTo(clickMap);
-            
-            // Carregar dados iniciais para o mapa após um pequeno atraso
-            setTimeout(() => {
-                // Buscar dados para o mapa com os filtros padrões
-                updateMapMarkers();
-                clickMap.invalidateSize();
-            }, 500);
+            try {
+                // Inicializar o mapa centralizado no Brasil
+                clickMap = L.map('mapChart', {
+                    center: [-14.235, -51.925],
+                    zoom: 4,
+                    minZoom: 2,
+                    maxZoom: 18,
+                    zoomControl: true,
+                    attributionControl: true
+                });
+                
+                // Adicionar o controle de zoom no canto superior direito
+                clickMap.zoomControl.setPosition('topright');
+                
+                // Adicionar camada base do mapa (estilo escuro)
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 19
+                }).addTo(clickMap);
+                
+                // Adicionar um título flutuante para o mapa
+                const mapTitle = L.control({ position: 'topleft' });
+                mapTitle.onAdd = function() {
+                    const div = L.DomUtil.create('div', 'map-title');
+                    div.innerHTML = `
+                        <div style="
+                            background-color: rgba(0,0,0,0.7);
+                            padding: 5px 10px;
+                            border-radius: 5px;
+                            margin: 10px;
+                            font-size: 14px;
+                            border-left: 3px solid var(--primary-color);
+                            font-weight: 500;
+                        ">
+                            <i class="bi bi-geo-alt me-1"></i> Mapa de Cliques
+                        </div>
+                    `;
+                    return div;
+                };
+                mapTitle.addTo(clickMap);
+                
+                // Carregar dados iniciais para o mapa após um pequeno atraso
+                // para garantir que o mapa esteja totalmente renderizado
+                setTimeout(() => {
+                    updateMapMarkers();
+                    clickMap.invalidateSize();
+                }, 500);
+                
+                // Adicionar evento de redimensionamento
+                window.addEventListener('resize', function() {
+                    clickMap.invalidateSize();
+                });
+            } catch (error) {
+                console.error('Erro ao inicializar o mapa:', error);
+                mapElement.innerHTML = `
+                    <div class="alert alert-danger m-3">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Erro ao inicializar o mapa: ${error.message}
+                    </div>
+                `;
+            }
         }
         
         function loadNumberStats() {
@@ -735,10 +811,9 @@
             
             // Mostrar indicador de carregamento se não estiver anexando
             if (!append) {
-                const activityContainer = document.getElementById('recentActivity');
-                activityContainer.innerHTML = `
+                document.querySelector('#recentRedirectsTable tbody').innerHTML = `
                     <tr>
-                        <td colspan="4" class="text-center">
+                        <td colspan="5" class="text-center">
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Carregando...</span>
                             </div>
@@ -760,8 +835,6 @@
             // Sempre incluir as datas (com fallback para hoje se não estiverem definidas)
             apiUrl.searchParams.set('start_date', queryStartDate);
             apiUrl.searchParams.set('end_date', queryEndDate);
-            // Se temos datas definidas, solicitar todos os registros
-            apiUrl.searchParams.set('all', 'true');
             
             console.log('Buscando atividades recentes:', apiUrl.toString());
             
@@ -775,15 +848,14 @@
                 .then(data => {
                     console.log('Dados recebidos:', data);
                     
-                    const activityContainer = document.getElementById('recentActivity');
-                    const loadMoreBtn = document.getElementById('loadMoreActivity');
+                    const tableBody = document.querySelector('#recentRedirectsTable tbody');
                     
                     // Se não for para anexar, limpe o container
                     if (!append) {
-                        activityContainer.innerHTML = '';
+                        tableBody.innerHTML = '';
                     } else {
                         // Remove loading indicator if it exists (when appending)
-                        const loadingRow = activityContainer.querySelector('.spinner-border')?.closest('tr');
+                        const loadingRow = tableBody.querySelector('.spinner-border')?.closest('tr');
                         if (loadingRow) {
                             loadingRow.remove();
                         }
@@ -806,17 +878,6 @@
                                 } else {
                                     // Tentar criar um objeto Date a partir da string
                                     redirectDate = new Date(redirect.redirect_time);
-                                    
-                                    // Se a data for inválida, tenta novamente com formato alternativo
-                                    if (isNaN(redirectDate.getTime())) {
-                                        // Tentar formato ISO sem Z
-                                        const dateStr = redirect.redirect_time.replace('Z', '').replace('T', ' ');
-                                        const [datePart, timePart] = dateStr.split(' ');
-                                        const [year, month, day] = datePart.split('-');
-                                        const [hour, minute, second] = timePart.split(':');
-                                        
-                                        redirectDate = new Date(year, month-1, day, hour, minute, second);
-                                    }
                                 }
                             } catch (e) {
                                 console.error('Erro ao parsear data:', e, redirect.redirect_time);
@@ -837,6 +898,13 @@
                             // Formatar o número de telefone
                             const formattedPhone = formatPhoneNumber(redirect.phone_number);
                             
+                            // Formatação da localização
+                            const location = [];
+                            if (redirect.city) location.push(redirect.city);
+                            if (redirect.region) location.push(redirect.region);
+                            if (redirect.country) location.push(redirect.country);
+                            const locationStr = location.join(', ');
+                            
                             // Preencher as células
                             row.innerHTML = `
                                 <td>
@@ -853,47 +921,42 @@
                                 <td>
                                     <small>${redirect.ip_address}</small>
                                 </td>
+                                <td>
+                                    <small>${locationStr}</small>
+                                </td>
                             `;
                             
-                            activityContainer.appendChild(row);
+                            tableBody.appendChild(row);
                         });
                         
-                        // Mostrar ou ocultar o botão "Carregar mais" dependendo se há mais dados
-                        const hasMore = !data.show_all && (data.total_records > (data.page * data.limit));
-                        loadMoreBtn.style.display = hasMore ? 'block' : 'none';
+                        if (!append && data.total_records > 0) {
+                            // Adicionar contador no topo da tabela
+                            const infoRow = document.createElement('tr');
+                            infoRow.classList.add('bg-dark', 'text-muted');
+                            infoRow.innerHTML = `
+                                <td colspan="5" class="text-center">Total de registros: ${data.total_records}</td>
+                            `;
+                            tableBody.insertBefore(infoRow, tableBody.firstChild);
+                        }
                     } else {
                         if (!append) { // Só mostra "sem dados" se não estiver anexando
-                            activityContainer.innerHTML = `
+                            tableBody.innerHTML = `
                                 <tr>
-                                    <td colspan="4" class="text-center">Nenhuma atividade recente para o período selecionado</td>
+                                    <td colspan="5" class="text-center">Nenhuma atividade recente para o período selecionado</td>
                                 </tr>
                             `;
                         }
-                        // Ocultar botão quando não há mais dados
-                        loadMoreBtn.style.display = 'none';
-                    }
-                    
-                    // Adicionar informação sobre o total de registros (se não estiver anexando)
-                    if (!append && data.total_records > 0) {
-                        // Adicionar contador no topo da tabela
-                        const infoRow = document.createElement('tr');
-                        infoRow.classList.add('bg-dark', 'text-muted');
-                        infoRow.innerHTML = `
-                            <td colspan="4" class="text-center">Total de registros: ${data.total_records}</td>
-                        `;
-                        activityContainer.insertBefore(infoRow, activityContainer.firstChild);
                     }
                 })
                 .catch(error => {
                     console.error('Erro ao carregar atividades recentes:', error);
-                    document.getElementById('recentActivity').innerHTML = `
+                    document.querySelector('#recentRedirectsTable tbody').innerHTML = `
                         <tr>
-                            <td colspan="4" class="text-center text-danger">
+                            <td colspan="5" class="text-center text-danger">
                                 Erro ao carregar atividades recentes: ${error.message}
                             </td>
                         </tr>
                     `;
-                    document.getElementById('loadMoreActivity').style.display = 'none';
                 });
         }
         
@@ -916,76 +979,184 @@
                 url += `&link_id=${linkId}`;
             }
             
-            // Remover todos os marcadores existentes do mapa
+            console.log('Buscando dados do mapa:', url);
+            
+            // Limpar marcadores existentes, mantendo a camada base do mapa
             clickMap.eachLayer(function(layer) {
                 if (layer instanceof L.Marker) {
                     clickMap.removeLayer(layer);
                 }
             });
             
-            // Adicionar o tile layer novamente se foi removido
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-                subdomains: 'abcd',
-                maxZoom: 19
-            }).addTo(clickMap);
+            // Mostrar indicador de carregamento no mapa
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'map-loading';
+            loadingDiv.style.position = 'absolute';
+            loadingDiv.style.top = '50%';
+            loadingDiv.style.left = '50%';
+            loadingDiv.style.transform = 'translate(-50%, -50%)';
+            loadingDiv.style.zIndex = '1000';
+            loadingDiv.style.backgroundColor = 'rgba(0,0,0,0.7)';
+            loadingDiv.style.padding = '10px 20px';
+            loadingDiv.style.borderRadius = '5px';
+            loadingDiv.innerHTML = '<span class="spinner-border spinner-border-sm text-light me-2"></span>Carregando dados do mapa...';
+            document.getElementById('mapChart').appendChild(loadingDiv);
             
             // Fazer a requisição para obter os dados do mapa
             fetch(url)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro na resposta da API: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    // Remover indicador de carregamento
+                    const loadingElement = document.getElementById('map-loading');
+                    if (loadingElement) {
+                        loadingElement.remove();
+                    }
+                    
+                    console.log('Dados do mapa recebidos:', data);
+                    
                     if (data.locations && data.locations.length > 0) {
+                        // Criar um grupo de marcadores para ajustar a visualização
+                        const markers = L.featureGroup();
+                        
                         // Adicionar marcadores para cada localização
                         data.locations.forEach(location => {
-                            const size = Math.min(50, Math.max(15, location.count / 2));
-                            const icon = L.divIcon({
-                                className: 'custom-marker',
-                                html: `<div style="background-color: rgba(37, 211, 102, 0.7); width: ${size}px; height: ${size}px; border-radius: 50%; border: 2px solid white;"></div>`,
-                                iconSize: [size, size],
-                                iconAnchor: [size/2, size/2]
-                            });
-                            
-                            L.marker([location.lat, location.lng], {icon: icon})
-                                .addTo(clickMap)
-                                .bindPopup(`<b>${location.count}</b> cliques: ${location.name}`);
+                            // Validar as coordenadas
+                            if (location.lat && location.lng && 
+                                !isNaN(location.lat) && !isNaN(location.lng) &&
+                                location.lat >= -90 && location.lat <= 90 && 
+                                location.lng >= -180 && location.lng <= 180) {
+                                
+                                // Ajustar o tamanho do marcador com base na contagem
+                                const size = Math.min(60, Math.max(20, location.count * 2));
+                                
+                                // Criar ícone personalizado
+                                const icon = L.divIcon({
+                                    className: 'custom-marker',
+                                    html: `<div style="
+                                        background-color: rgba(37, 211, 102, 0.7); 
+                                        width: ${size}px; 
+                                        height: ${size}px; 
+                                        border-radius: 50%; 
+                                        border: 2px solid white;
+                                        display: flex;
+                                        justify-content: center;
+                                        align-items: center;
+                                        font-weight: bold;
+                                        color: white;
+                                        font-size: ${size/3}px;
+                                    ">${location.count}</div>`,
+                                    iconSize: [size, size],
+                                    iconAnchor: [size/2, size/2]
+                                });
+                                
+                                // Criar marcador e adicionar ao mapa
+                                const marker = L.marker([location.lat, location.lng], {icon: icon})
+                                    .bindPopup(`
+                                        <div style="text-align: center;">
+                                            <strong>${location.count} clique${location.count > 1 ? 's' : ''}</strong>
+                                            <hr style="margin: 5px 0;">
+                                            <span>${location.name || 'Localização desconhecida'}</span>
+                                        </div>
+                                    `);
+                                
+                                // Adicionar ao grupo de marcadores e ao mapa
+                                markers.addLayer(marker);
+                                marker.addTo(clickMap);
+                            } else {
+                                console.warn('Coordenadas inválidas ignoradas:', location);
+                            }
                         });
                         
-                        // Centralizar o mapa no Brasil
-                        clickMap.setView([-14.235, -51.925], 4);
+                        // Ajustar visualização para mostrar todos os marcadores
+                        if (markers.getLayers().length > 0) {
+                            try {
+                                clickMap.fitBounds(markers.getBounds(), {
+                                    padding: [50, 50],
+                                    maxZoom: 13
+                                });
+                            } catch (e) {
+                                console.warn('Erro ao ajustar visualização do mapa:', e);
+                                // Fallback para coordenadas do Brasil
+                                clickMap.setView([-14.235, -51.925], 4);
+                            }
+                        } else {
+                            // Fallback para coordenadas do Brasil
+                            clickMap.setView([-14.235, -51.925], 4);
+                        }
                     } else {
                         // Se não houver dados, mostrar marcador informativo
+                        clickMap.setView([-14.235, -51.925], 4);
+                        
                         const icon = L.divIcon({
                             className: 'custom-marker',
-                            html: `<div style="background-color: rgba(200, 200, 200, 0.7); width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold;">?</div>`,
-                            iconSize: [30, 30],
-                            iconAnchor: [15, 15]
+                            html: `<div style="
+                                background-color: rgba(150, 150, 150, 0.7); 
+                                width: 40px; 
+                                height: 40px; 
+                                border-radius: 50%; 
+                                border: 2px solid white; 
+                                display: flex; 
+                                justify-content: center; 
+                                align-items: center; 
+                                color: white; 
+                                font-weight: bold;
+                            ">?</div>`,
+                            iconSize: [40, 40],
+                            iconAnchor: [20, 20]
                         });
                         
                         L.marker([-14.235, -51.925], {icon: icon})
                             .addTo(clickMap)
-                            .bindPopup("Nenhum dado disponível para o filtro selecionado");
+                            .bindPopup("Nenhum dado de localização disponível para o período selecionado");
+                    }
+                    
+                    // Exibir estatísticas por país, se disponível
+                    if (data.countries && data.countries.length > 0) {
+                        console.log('Estatísticas por país:', data.countries);
+                        // Aqui você poderia criar um gráfico ou tabela com essas estatísticas
                     }
                     
                     // Garantir que o mapa seja renderizado corretamente
                     clickMap.invalidateSize();
                 })
                 .catch(error => {
+                    // Remover indicador de carregamento
+                    const loadingElement = document.getElementById('map-loading');
+                    if (loadingElement) {
+                        loadingElement.remove();
+                    }
+                    
                     console.error('Erro ao carregar dados do mapa:', error);
                     
                     // Em caso de erro, mostrar marcador informativo
+                    clickMap.setView([-14.235, -51.925], 4);
+                    
                     const icon = L.divIcon({
                         className: 'custom-marker',
-                        html: `<div style="background-color: rgba(255, 0, 0, 0.7); width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold;">!</div>`,
-                        iconSize: [30, 30],
-                        iconAnchor: [15, 15]
+                        html: `<div style="
+                            background-color: rgba(255, 80, 80, 0.8); 
+                            width: 40px; 
+                            height: 40px; 
+                            border-radius: 50%; 
+                            border: 2px solid white; 
+                            display: flex; 
+                            justify-content: center; 
+                            align-items: center; 
+                            color: white; 
+                            font-weight: bold;
+                        ">!</div>`,
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
                     });
                     
                     L.marker([-14.235, -51.925], {icon: icon})
                         .addTo(clickMap)
-                        .bindPopup("Erro ao carregar dados do mapa");
-                    
-                    // Centralizar o mapa no Brasil
-                    clickMap.setView([-14.235, -51.925], 4);
+                        .bindPopup(`Erro ao carregar dados do mapa: ${error.message}`);
                 });
         }
         

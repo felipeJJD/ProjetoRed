@@ -33,4 +33,4 @@ EXPOSE 8080
 # Configurar variável de ambiente para produção
 ENV FLASK_ENV=production
 
-CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:8080"]
+CMD ["gunicorn", "wsgi:app", "--bind", "0.0.0.0:8080"]

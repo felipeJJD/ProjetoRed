@@ -8,7 +8,6 @@ import json
 class GeoLocationService:
     """Serviço para obter informações de geolocalização a partir de endereços IP"""
     
-    PRIMARY_URL = "https://ipapi.co/"
     BACKUP_URL = "https://ipinfo.io/"
     FREE_GEO_URL = "https://freegeoip.app/json/"
     IP_API_URL = "http://ip-api.com/json/"
@@ -50,7 +49,6 @@ class GeoLocationService:
         
         # Tentar diferentes provedores de geolocalização até encontrar um que funcione
         location_info = (
-            GeoLocationService._try_ipapi(ip_address) or 
             GeoLocationService._try_ipinfo(ip_address) or 
             GeoLocationService._try_ip_api(ip_address) or
             GeoLocationService._try_freegeoip(ip_address)
@@ -71,39 +69,6 @@ class GeoLocationService:
         # Armazenar no cache
         GeoLocationService.ip_cache[ip_address] = location_info
         return location_info
-    
-    @staticmethod
-    def _try_ipapi(ip_address):
-        """Tenta obter localização usando ipapi.co"""
-        try:
-            url = urljoin(GeoLocationService.PRIMARY_URL, f"{ip_address}/json/")
-            response = requests.get(url, timeout=3)
-            
-            if response.status_code == 200:
-                data = response.json()
-                
-                if data.get('error'):
-                    logging.warning(f"Erro na API ipapi.co: {data.get('reason')}")
-                    return None
-                
-                # Extrair somente as informações necessárias
-                location_info = {
-                    'ip': data.get('ip'),
-                    'city': data.get('city'),
-                    'region': data.get('region'),
-                    'country': data.get('country_name'),
-                    'lat': data.get('latitude'),
-                    'lon': data.get('longitude')
-                }
-                
-                logging.info(f"Informações obtidas de ipapi.co para IP {ip_address}")
-                return location_info
-            else:
-                logging.warning(f"Erro ao obter localização de ipapi.co. Status: {response.status_code}")
-                return None
-        except Exception as e:
-            logging.error(f"Erro ao acessar ipapi.co para IP {ip_address}: {str(e)}")
-            return None
     
     @staticmethod
     def _try_ipinfo(ip_address):

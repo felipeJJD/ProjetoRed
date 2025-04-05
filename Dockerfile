@@ -28,6 +28,9 @@ RUN pip install --no-cache-dir Flask==2.0.1 && \
 # Remover pytest que não é necessário em produção
 # pip install --no-cache-dir pytest==7.3.1
 
-EXPOSE 3333
+EXPOSE 8080
 
-CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:3333"]
+# Configurar variável de ambiente para produção
+ENV FLASK_ENV=production
+
+CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:8080"]

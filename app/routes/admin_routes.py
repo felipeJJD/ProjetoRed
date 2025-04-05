@@ -382,37 +382,68 @@ def backup_db_secret():
 
 
 def fix_database_schema():
-    """Função para corrigir esquemas de banco de dados com problemas"""
+    """Verifica e corrige o esquema do banco de dados."""
     try:
         conn = db_adapter.get_db_connection()
         cursor = conn.cursor()
         
-        # Tentar corrigir o problema com tipo de dados is_active
-        try:
-            # Verificar o tipo da coluna is_active
+        # Verificar se a tabela whatsapp_numbers existe
+        cursor.execute("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'whatsapp_numbers')")
+        if not cursor.fetchone()[0]:
+            print("Tabela whatsapp_numbers não existe. Criando tabela...")
             cursor.execute("""
-                SELECT data_type
-                FROM information_schema.columns
-                WHERE table_name = 'whatsapp_numbers' AND column_name = 'is_active'
+                CREATE TABLE whatsapp_numbers (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id),
+                    number VARCHAR(255) NOT NULL,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
             """)
-            data_type = cursor.fetchone()
-            
-            if data_type and data_type['data_type'] == 'integer':
-                # Se o tipo for integer, mas estamos usando como boolean, corrigir
-                logging.info("Corrigindo tipo de dados is_active na tabela whatsapp_numbers")
-                cursor.execute("ALTER TABLE whatsapp_numbers ALTER COLUMN is_active TYPE boolean USING is_active::boolean")
-                conn.commit()
-                logging.info("Coluna is_active corrigida com sucesso")
-            else:
-                logging.info(f"Coluna is_active tem o tipo {data_type['data_type'] if data_type else 'desconhecido'}, não é necessário corrigir")
+            conn.commit()
+            print("Tabela whatsapp_numbers criada com sucesso!")
+        else:
+            # Verificar se a coluna is_active existe e seu tipo
+            cursor.execute("SELECT data_type FROM information_schema.columns WHERE table_name = 'whatsapp_numbers' AND column_name = 'is_active'")
+            result = cursor.fetchone()
+            if result:
+                current_type = result[0]
+                print(f"Coluna is_active existe com tipo: {current_type}")
                 
-        except Exception as e:
-            conn.rollback()
-            logging.error(f"Erro ao corrigir esquema da tabela whatsapp_numbers: {str(e)}")
-            
+                if current_type != 'boolean':
+                    print("Atualizando valor padrão para NULLs na coluna is_active...")
+                    # Primeiro atualiza valores NULL para 1 (true)
+                    cursor.execute("UPDATE whatsapp_numbers SET is_active = 1 WHERE is_active IS NULL")
+                    conn.commit()
+                    
+                    print("Alterando tipo da coluna is_active para boolean...")
+                    # Depois altera o tipo com USING para garantir a conversão segura
+                    cursor.execute("""
+                        ALTER TABLE whatsapp_numbers 
+                        ALTER COLUMN is_active TYPE boolean 
+                        USING CASE WHEN is_active = 0 THEN false ELSE true END
+                    """)
+                    conn.commit()
+                    print("Coluna is_active alterada para boolean com sucesso!")
+                    
+                    # Define o valor padrão após a conversão
+                    cursor.execute("ALTER TABLE whatsapp_numbers ALTER COLUMN is_active SET DEFAULT true")
+                    conn.commit()
+                    print("Valor padrão da coluna is_active definido como TRUE")
+            else:
+                # Se a coluna não existe, adicioná-la
+                print("Adicionando coluna is_active à tabela whatsapp_numbers...")
+                cursor.execute("ALTER TABLE whatsapp_numbers ADD COLUMN is_active BOOLEAN DEFAULT TRUE")
+                conn.commit()
+                print("Coluna is_active adicionada com sucesso!")
+        
+        # Verificação para custom_links
+        # ... rest of the function
+        
         conn.close()
     except Exception as e:
         logging.error(f"Erro ao corrigir esquema do banco de dados: {str(e)}")
+        # Continue normalmente mesmo com erro
 
 # Executar a correção no momento da importação deste módulo
 fix_database_schema()

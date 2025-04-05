@@ -2,24 +2,27 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Instalar apenas as dependências essenciais para compilação
+# Instalar dependências necessárias para compilação
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
+    gcc \
+    python3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Copiar apenas o arquivo de requisitos primeiro
 COPY requirements-minimal.txt .
 
-# Instalar dependências mínimas
+# Instalar dependências mínimas primeiro
 RUN pip install --no-cache-dir -r requirements-minimal.txt
 
-# Copiar o resto dos arquivos depois de instalar dependências
+# Depois copiar os arquivos do projeto
 COPY . .
 
-EXPOSE 3333
+EXPOSE 8080
 
 # Configurar variável de ambiente para produção
 ENV FLASK_ENV=production
 
-CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:3333"] 
+CMD ["gunicorn", "main:app", "--bind", "0.0.0.0:8080"] 
